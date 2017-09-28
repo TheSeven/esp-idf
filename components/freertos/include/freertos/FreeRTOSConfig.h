@@ -231,12 +231,6 @@
 #define INCLUDE_pcTaskGetTaskName			1
 #define INCLUDE_xTaskGetIdleTaskHandle      1
 
-#if CONFIG_ENABLE_MEMORY_DEBUG
-#define configENABLE_MEMORY_DEBUG 1
-#else
-#define configENABLE_MEMORY_DEBUG 0
-#endif
-
 #define INCLUDE_xSemaphoreGetMutexHolder    1
 
 /* The priority at which the tick interrupt runs.  This should probably be
@@ -275,9 +269,7 @@ extern void vPortCleanUpTCB ( void *pxTCB );
 #define configXT_BOARD                      1   /* Board mode */
 #define configXT_SIMULATOR					0
 
-#if CONFIG_ESP32_ENABLE_COREDUMP
 #define configENABLE_TASK_SNAPSHOT			1
-#endif
 
 #if CONFIG_SYSVIEW_ENABLE
 #ifndef __ASSEMBLER__

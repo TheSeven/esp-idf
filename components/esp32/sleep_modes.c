@@ -100,8 +100,10 @@ void esp_set_deep_sleep_wake_stub(esp_deep_sleep_wake_stub_fn_t new_stub)
 
 void RTC_IRAM_ATTR esp_default_wake_deep_sleep(void) {
     /* Clear MMU for CPU 0 */
-    DPORT_REG_SET_BIT(DPORT_PRO_CACHE_CTRL1_REG, DPORT_PRO_CACHE_MMU_IA_CLR);
-    DPORT_REG_CLR_BIT(DPORT_PRO_CACHE_CTRL1_REG, DPORT_PRO_CACHE_MMU_IA_CLR);
+    _DPORT_REG_WRITE(DPORT_PRO_CACHE_CTRL1_REG,
+            _DPORT_REG_READ(DPORT_PRO_CACHE_CTRL1_REG) | DPORT_PRO_CACHE_MMU_IA_CLR);
+    _DPORT_REG_WRITE(DPORT_PRO_CACHE_CTRL1_REG,
+            _DPORT_REG_READ(DPORT_PRO_CACHE_CTRL1_REG) & (~DPORT_PRO_CACHE_MMU_IA_CLR));
 #if CONFIG_ESP32_DEEP_SLEEP_WAKEUP_DELAY > 0
     // ROM code has not started yet, so we need to set delay factor
     // used by ets_delay_us first.
@@ -195,7 +197,10 @@ static void rtc_wdt_disable()
  * Helper function which handles entry to and exit from light sleep
  * Placed into IRAM as flash may need some time to be powered on.
  */
-static esp_err_t IRAM_ATTR esp_light_sleep_inner(uint32_t pd_flags,
+static esp_err_t esp_light_sleep_inner(uint32_t pd_flags,
+        rtc_cpu_freq_t cpu_freq, uint32_t flash_enable_time_us) IRAM_ATTR __attribute__((noinline));
+
+static esp_err_t esp_light_sleep_inner(uint32_t pd_flags,
         rtc_cpu_freq_t cpu_freq, uint32_t flash_enable_time_us)
 {
     // Enter sleep

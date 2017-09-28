@@ -4103,6 +4103,7 @@ For ESP32 FreeRTOS, vTaskEnterCritical implements both portENTER_CRITICAL and po
 
 #if ( portCRITICAL_NESTING_IN_TCB == 1 )
 
+#include "portmux_impl.h"
 
 #ifdef CONFIG_FREERTOS_PORTMUX_DEBUG
 	void vTaskEnterCritical( portMUX_TYPE *mux, const char *function, int line )
@@ -4111,7 +4112,8 @@ For ESP32 FreeRTOS, vTaskEnterCritical implements both portENTER_CRITICAL and po
 #endif
 	{
 		BaseType_t oldInterruptLevel=0;
-		if( xSchedulerRunning != pdFALSE )
+		BaseType_t schedulerRunning = xSchedulerRunning;
+		if( schedulerRunning != pdFALSE )
 		{
 			//Interrupts may already be disabled (because we're doing this recursively) but we can't get the interrupt level after
 			//vPortCPUAquireMutex, because it also may mess with interrupts. Get it here first, then later figure out if we're nesting
@@ -4119,26 +4121,27 @@ For ESP32 FreeRTOS, vTaskEnterCritical implements both portENTER_CRITICAL and po
 			oldInterruptLevel=portENTER_CRITICAL_NESTED();
 		}
 #ifdef CONFIG_FREERTOS_PORTMUX_DEBUG
-		vPortCPUAcquireMutex( mux, function, line );
+		vPortCPUAcquireMutexIntsDisabled( mux, portMUX_NO_TIMEOUT, function, line );
 #else
-		vPortCPUAcquireMutex( mux );
+		vPortCPUAcquireMutexIntsDisabled( mux, portMUX_NO_TIMEOUT );
 #endif
 
-		if( xSchedulerRunning != pdFALSE )
+		if( schedulerRunning != pdFALSE )
 		{
-			( pxCurrentTCB[ xPortGetCoreID() ]->uxCriticalNesting )++;
-
-			if( xSchedulerRunning != pdFALSE && pxCurrentTCB[ xPortGetCoreID() ]->uxCriticalNesting == 1 )
+			TCB_t *tcb = pxCurrentTCB[xPortGetCoreID()];
+			BaseType_t newNesting = tcb->uxCriticalNesting + 1;
+ 			tcb->uxCriticalNesting = newNesting;
+			if( newNesting == 1 )
 			{
 				//This is the first time we get called. Save original interrupt level.
-				pxCurrentTCB[ xPortGetCoreID() ]->uxOldInterruptState=oldInterruptLevel;
+				tcb->uxOldInterruptState = oldInterruptLevel;
 			}
 
 			/* Original FreeRTOS comment, saved for reference:
 			This is not the interrupt safe version of the enter critical
 			function so	assert() if it is being called from an interrupt
 			context.  Only API functions that end in "FromISR" can be used in an
-			interrupt.  Only assert if the critical nesting count is 1 to
+			interrupt. Only assert if the critical nesting count is 1 to
 			protect against recursive calls if the assert function also uses a
 			critical section. */
 
@@ -4149,7 +4152,7 @@ For ESP32 FreeRTOS, vTaskEnterCritical implements both portENTER_CRITICAL and po
 			both from ISR as well as non-ISR code, thus we re-organized
 			vTaskEnterCritical to also work in ISRs. */
 #if 0
-			if( pxCurrentTCB[ xPortGetCoreID() ]->uxCriticalNesting == 1 )
+			if( newNesting	== 1 )
 			{
 				portASSERT_IF_IN_ISR();
 			}
@@ -4178,19 +4181,22 @@ For ESP32 FreeRTOS, vTaskExitCritical implements both portEXIT_CRITICAL and port
 #endif
 	{
 #ifdef CONFIG_FREERTOS_PORTMUX_DEBUG
-		vPortCPUReleaseMutex( mux, function, line );
+		vPortCPUReleaseMutexIntsDisabled( mux, function, line );
 #else
-		vPortCPUReleaseMutex( mux );
+		vPortCPUReleaseMutexIntsDisabled( mux );
 #endif
 		if( xSchedulerRunning != pdFALSE )
 		{
-			if( pxCurrentTCB[ xPortGetCoreID() ]->uxCriticalNesting > 0U )
+			TCB_t *tcb = pxCurrentTCB[xPortGetCoreID()];
+			BaseType_t nesting = tcb->uxCriticalNesting;
+			if( nesting	 > 0U )
 			{
-				( pxCurrentTCB[ xPortGetCoreID() ]->uxCriticalNesting )--;
+				nesting--;
+				tcb->uxCriticalNesting = nesting;
 
-				if( pxCurrentTCB[ xPortGetCoreID() ]->uxCriticalNesting == 0U )
+				if( nesting == 0U )
 				{
-					portEXIT_CRITICAL_NESTED(pxCurrentTCB[ xPortGetCoreID() ]->uxOldInterruptState);
+					portEXIT_CRITICAL_NESTED(tcb->uxOldInterruptState);
 				}
 				else
 				{
@@ -4617,7 +4623,6 @@ TickType_t uxReturn;
 	TickType_t xTimeToWake;
 	BaseType_t xReturn;
 
-		//UNTESTED_FUNCTION();
 		taskENTER_CRITICAL(&xTaskQueueMutex);
 		{
 			/* Only block if a notification is not already pending. */
@@ -4741,7 +4746,6 @@ TickType_t uxReturn;
 	eNotifyValue eOriginalNotifyState;
 	BaseType_t xReturn = pdPASS;
 
-		//UNTESTED_FUNCTION();
 		configASSERT( xTaskToNotify );
 		pxTCB = ( TCB_t * ) xTaskToNotify;
 
@@ -4987,22 +4991,24 @@ TickType_t uxReturn;
 #endif /* configUSE_TASK_NOTIFICATIONS */
 
 #if ( configENABLE_TASK_SNAPSHOT == 1 )
-
-    static void prvTaskGetSnapshot( TaskSnapshot_t *pxTaskSnapshotArray, UBaseType_t *uxTask, TCB_t *pxTCB )
-    {
-        pxTaskSnapshotArray[ *uxTask ].pxTCB = pxTCB;
-        pxTaskSnapshotArray[ *uxTask ].pxTopOfStack = (StackType_t *)pxTCB->pxTopOfStack;
-        #if( portSTACK_GROWTH < 0 )
-        {
-            pxTaskSnapshotArray[ *uxTask ].pxEndOfStack = pxTCB->pxEndOfStack;
-        }
-        #else
-        {
-            pxTaskSnapshotArray[ *uxTask ].pxEndOfStack = pxTCB->pxStack;
-        }
-        #endif
-        (*uxTask)++;
-    }
+	static void prvTaskGetSnapshot( TaskSnapshot_t *pxTaskSnapshotArray, UBaseType_t *uxTask, TCB_t *pxTCB )
+	{
+		if (pxTCB == NULL) {
+			return;
+		}
+		pxTaskSnapshotArray[ *uxTask ].pxTCB = pxTCB;
+		pxTaskSnapshotArray[ *uxTask ].pxTopOfStack = (StackType_t *)pxTCB->pxTopOfStack;
+		#if( portSTACK_GROWTH < 0 )
+		{
+			pxTaskSnapshotArray[ *uxTask ].pxEndOfStack = pxTCB->pxEndOfStack;
+		}
+		#else
+		{
+			pxTaskSnapshotArray[ *uxTask ].pxEndOfStack = pxTCB->pxStack;
+		}
+		#endif
+		(*uxTask)++;
+	}
 
 	static void prvTaskGetSnapshotsFromList( TaskSnapshot_t *pxTaskSnapshotArray, UBaseType_t *uxTask, const UBaseType_t uxArraySize, List_t *pxList )
 	{
@@ -5013,12 +5019,11 @@ TickType_t uxReturn;
 			listGET_OWNER_OF_NEXT_ENTRY( pxFirstTCB, pxList );
 			do
 			{
-				listGET_OWNER_OF_NEXT_ENTRY( pxNextTCB, pxList );
-
 				if( *uxTask >= uxArraySize )
 					break;
 
-                prvTaskGetSnapshot( pxTaskSnapshotArray, uxTask, pxNextTCB );
+				listGET_OWNER_OF_NEXT_ENTRY( pxNextTCB, pxList );
+				prvTaskGetSnapshot( pxTaskSnapshotArray, uxTask, pxNextTCB );
 			} while( pxNextTCB != pxFirstTCB );
 		}
 		else
@@ -5030,8 +5035,6 @@ TickType_t uxReturn;
 	UBaseType_t uxTaskGetSnapshotAll( TaskSnapshot_t * const pxTaskSnapshotArray, const UBaseType_t uxArraySize, UBaseType_t * const pxTcbSz )
 	{
 		UBaseType_t uxTask = 0, i = 0;
-
-PRIVILEGED_DATA TCB_t * volatile pxCurrentTCB[ portNUM_PROCESSORS ] = { NULL };
 
 
 		*pxTcbSz = sizeof(TCB_t);
@@ -5048,12 +5051,11 @@ PRIVILEGED_DATA TCB_t * volatile pxCurrentTCB[ portNUM_PROCESSORS ] = { NULL };
 		task in the Blocked state. */
 		prvTaskGetSnapshotsFromList( pxTaskSnapshotArray, &uxTask, uxArraySize, ( List_t * ) pxDelayedTaskList );
 		prvTaskGetSnapshotsFromList( pxTaskSnapshotArray, &uxTask, uxArraySize, ( List_t * ) pxOverflowDelayedTaskList );
-        for (i = 0; i < portNUM_PROCESSORS; i++) {
-            if( uxTask >= uxArraySize )
-                    break;
-            prvTaskGetSnapshot( pxTaskSnapshotArray, &uxTask, pxCurrentTCB[ i ] );
-            prvTaskGetSnapshotsFromList( pxTaskSnapshotArray, &uxTask, uxArraySize, &( xPendingReadyList[ i ] ) );
-        }
+		for (i = 0; i < portNUM_PROCESSORS; i++) {
+			if( uxTask >= uxArraySize )
+				break;
+			prvTaskGetSnapshotsFromList( pxTaskSnapshotArray, &uxTask, uxArraySize, &( xPendingReadyList[ i ] ) );
+		}
 
 		#if( INCLUDE_vTaskDelete == 1 )
 		{

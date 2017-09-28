@@ -37,6 +37,7 @@
 #include <sys/time.h>
 #include <sys/fcntl.h>
 #include "esp_task.h"
+#include "esp_system.h"
 #include "sdkconfig.h"
 
 /* Enable all Espressif-only options */
@@ -65,7 +66,7 @@
  */
 #define SMEMCPY(dst,src,len)            memcpy(dst,src,len)
 
-#define LWIP_RAND       rand
+#define LWIP_RAND       esp_random
 
 /*
    ------------------------------------
@@ -295,6 +296,11 @@
 #define TCP_MSS                         CONFIG_TCP_MSS
 
 /**
+ * TCP_MSL: The maximum segment lifetime in milliseconds
+ */
+#define TCP_MSL                         CONFIG_TCP_MSL
+
+/**
  * TCP_MAXRTX: Maximum number of retransmissions of data segments.
  */
 #define TCP_MAXRTX                      CONFIG_TCP_MAXRTX
@@ -410,7 +416,7 @@
  * The queue size value itself is platform-dependent, but is passed to
  * sys_mbox_new() when tcpip_init is called.
  */
-#define TCPIP_MBOX_SIZE                 32
+#define TCPIP_MBOX_SIZE                 CONFIG_TCPIP_RECVMBOX_SIZE
 
 /**
  * DEFAULT_UDP_RECVMBOX_SIZE: The mailbox size for the incoming packets on a
@@ -514,10 +520,20 @@
    ---------- Statistics options ----------
    ----------------------------------------
 */
+
 /**
  * LWIP_STATS==1: Enable statistics collection in lwip_stats.
  */
-#define LWIP_STATS                      0
+#define LWIP_STATS                      CONFIG_LWIP_STATS
+
+#if LWIP_STATS
+
+/**
+ * LWIP_STATS_DISPLAY==1: Compile in the statistics output functions.
+ */
+#define LWIP_STATS_DISPLAY              CONFIG_LWIP_STATS
+#endif
+
 
 /*
    ---------------------------------
@@ -668,7 +684,7 @@
  * The peer *is* in the ARP table if it requested our address before.
  * Also notice that this slows down input processing of every IP packet!
  */
-#define ETHARP_TRUST_IP_MAC             1
+#define ETHARP_TRUST_IP_MAC             CONFIG_LWIP_ETHARP_TRUST_IP_MAC
 
 
 /* Enable all Espressif-only options */
@@ -686,8 +702,8 @@
 #define ESP_IP4_ATON                    1
 #define ESP_LIGHT_SLEEP                 1
 #define ESP_L2_TO_L3_COPY               CONFIG_L2_TO_L3_COPY
-#define ESP_STATS_MEM                   0
-#define ESP_STATS_DROP                  0
+#define ESP_STATS_MEM                   CONFIG_LWIP_STATS
+#define ESP_STATS_DROP                  CONFIG_LWIP_STATS
 #define ESP_STATS_TCP                   0
 #define ESP_DHCP_TIMER                  1
 #define ESP_LWIP_LOGI(...)              ESP_LOGI("lwip", __VA_ARGS__)

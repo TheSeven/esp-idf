@@ -3,11 +3,12 @@
 # Test the build system for basic consistency
 #
 # A bash script that tests some likely make failure scenarios in a row
-# Creates its own test build directory under TMP and cleans it up when done.
+#
+# Assumes PWD is an out-of-tree build directory, and will create a
+# subdirectory inside it to run build tests in.
 #
 # Environment variables:
 # IDF_PATH - must be set
-# TMP - can override /tmp location for build directory
 # ESP_IDF_TEMPLATE_GIT - Can override git clone source for template app. Otherwise github.
 # NOCLEANUP - Set to '1' if you want the script to leave its temporary directory when done, for post-mortem.
 #
@@ -26,7 +27,6 @@
 
 # Set up some variables
 #
-[ -z ${TMP} ] && TMP="/tmp"
 # override ESP_IDF_TEMPLATE_GIT to point to a local dir if you're testing and want fast iterations
 [ -z ${ESP_IDF_TEMPLATE_GIT} ] && ESP_IDF_TEMPLATE_GIT=https://github.com/espressif/esp-idf-template.git
 
@@ -134,13 +134,13 @@ function run_tests()
 
     print_status "Can still clean build if all text files are CRLFs"
     make clean || failure "Unexpected failure to make clean"
-    find . -exec unix2dos {} \; # CRLFify template dir
+    find . -path .git -prune -exec unix2dos {} \; # CRLFify template dir
     # make a copy of esp-idf and CRLFify it
     CRLF_ESPIDF=${TESTDIR}/esp-idf-crlf
     mkdir -p ${CRLF_ESPIDF}
     cp -r ${IDF_PATH}/* ${CRLF_ESPIDF}
     # don't CRLFify executable files, as Linux will fail to execute them
-    find ${CRLF_ESPIDF} -type f ! -perm 755 -exec unix2dos {} \;
+    find ${CRLF_ESPIDF} -name .git -prune -name build -prune -type f ! -perm 755 -exec unix2dos {} \;
     make IDF_PATH=${CRLF_ESPIDF} || failure "Failed to build with CRLFs in source"
     # do the same checks we do for the clean build
     assert_built ${APP_BINS} ${BOOTLOADER_BINS} partitions_singleapp.bin
@@ -165,6 +165,8 @@ function run_tests()
     take_build_snapshot
     touch sdkconfig
     make
+    # check the component_project_vars.mk file was rebuilt
+    assert_rebuilt esp32/component_project_vars.mk
     # pick one each of .c, .cpp, .S that #includes sdkconfig.h
     # and therefore should rebuild
     assert_rebuilt newlib/syscall_table.o
@@ -205,7 +207,7 @@ function failure()
     FAILURES="${FAILURES}${STATUS} :: $1\n"
 }
 
-TESTDIR=${TMP}/build_system_tests_$$
+TESTDIR=${PWD}/build_system_tests_$$
 mkdir -p ${TESTDIR}
 # set NOCLEANUP=1 if you want to keep the test directory around
 # for post-mortem debugging

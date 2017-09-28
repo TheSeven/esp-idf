@@ -182,3 +182,20 @@ void heap_caps_print_heap_info(uint32_t caps)
     heap_caps_get_info(&info, caps);
     printf("    free %d allocated %d min_free %d largest_free_block %d\n", info.total_free_bytes, info.total_allocated_bytes, info.minimum_free_bytes, info.largest_free_block);
 }
+
+/*
+ Default memory allocation implementation. Should return standard 8-bit memory. malloc() essentially resolves to this function.
+*/
+IRAM_ATTR void *heap_caps_malloc_default( size_t size )
+{
+    return heap_caps_malloc( size, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL );
+}
+
+/*
+ Same for realloc()
+ Note: keep the logic in here the same as in heap_caps_malloc_default (or merge the two as soon as this gets more complex...)
+ */
+IRAM_ATTR void *heap_caps_realloc_default( void *ptr, size_t size )
+{
+    return heap_caps_realloc( ptr, size, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL );
+}

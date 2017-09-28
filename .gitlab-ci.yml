@@ -142,6 +142,7 @@ build_esp_idf_tests:
   script:
     # it's not possible to build 100% out-of-tree and have the "artifacts"
     # mechanism work, but this is the next best thing
+    - rm -rf build_examples
     - mkdir build_examples
     - cd build_examples
     # build some of examples
@@ -162,22 +163,33 @@ build_examples_03:
 build_examples_04:
   <<: *build_examples_template
 
+build_examples_05:
+  <<: *build_examples_template
+
+build_examples_06:
+  <<: *build_examples_template
+
 build_docs:
   stage: build
   image: $CI_DOCKER_REGISTRY/esp32-ci-env
   tags:
     - build_docs
   artifacts:
+    when: always
     paths:
+      - docs/doxygen-warning-log.txt
+      - docs/sphinx-warning-log.txt
+      - docs/sphinx-warning-log-sanitized.txt
       - docs/_build/html
     expire_in: 1 mos
   script:
     - cd docs
     - doxygen
-    # If not building master branch, and there are Doxygen warnings, print them and bail out
-    - test -n $IS_PRIVATE && test $(cat doxygen-warning-log.txt | wc -l) -eq 0 || ( echo "Doxygen pass had some warnings:" && cat doxygen-warning-log.txt && false )
+    # If there are Doxygen warnings, print them and bail out
+    - test $(cat doxygen-warning-log.txt | wc -l) -eq 0 || ( echo "Doxygen pass had some warnings:" && cat doxygen-warning-log.txt && false )
     - make gh-linkcheck
     - make html
+    - ./check_doc_warnings.sh
 
 test_nvs_on_host:
   stage: test
@@ -228,8 +240,11 @@ test_build_system:
     - build_test
   dependencies: []
   script:
-    - ./tools/ci/test_configure_ci_environment.sh
-    - ./tools/ci/test_build_system.sh
+    - ${IDF_PATH}/tools/ci/test_configure_ci_environment.sh
+    - rm -rf test_build_system
+    - mkdir test_build_system
+    - cd test_build_system
+    - ${IDF_PATH}/tools/ci/test_build_system.sh
 
 test_report:
   stage: test_report
@@ -527,6 +542,12 @@ UT_001_06:
   tags:
     - ESP32_IDF
     - UT_T1_SPIMODE
+
+UT_001_07:
+  <<: *unit_test_template
+  tags:
+    - ESP32_IDF
+    - UT_T1_1
 
 IT_001_01:
   <<: *test_template

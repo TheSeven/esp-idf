@@ -108,14 +108,23 @@ static void spi_intr(void *arg);
 
 esp_err_t spi_bus_initialize(spi_host_device_t host, const spi_bus_config_t *bus_config, int dma_chan)
 {
-    bool native, claimed;
+    bool native, spi_chan_claimed, dma_chan_claimed;
     /* ToDo: remove this when we have flash operations cooperating with this */
     SPI_CHECK(host!=SPI_HOST, "SPI1 is not supported", ESP_ERR_NOT_SUPPORTED);
 
     SPI_CHECK(host>=SPI_HOST && host<=VSPI_HOST, "invalid host", ESP_ERR_INVALID_ARG);
+    SPI_CHECK( dma_chan >= 0 && dma_chan <= 2, "invalid dma channel", ESP_ERR_INVALID_ARG );
 
-    claimed=spicommon_periph_claim(host);
-    SPI_CHECK(claimed, "host already in use", ESP_ERR_INVALID_STATE);
+    spi_chan_claimed=spicommon_periph_claim(host);
+    SPI_CHECK(spi_chan_claimed, "host already in use", ESP_ERR_INVALID_STATE);
+
+    if ( dma_chan != 0 ) {
+        dma_chan_claimed=spicommon_dma_chan_claim(dma_chan);
+        if ( !dma_chan_claimed ) {
+            spicommon_periph_free( host );
+            SPI_CHECK(dma_chan_claimed, "dma channel already in use", ESP_ERR_INVALID_STATE);
+        }
+    }
 
     spihost[host]=malloc(sizeof(spi_host_t));
     if (spihost[host]==NULL) goto nomem;
@@ -184,6 +193,10 @@ esp_err_t spi_bus_free(spi_host_device_t host)
     SPI_CHECK(spihost[host]!=NULL, "host not in use", ESP_ERR_INVALID_STATE);
     for (x=0; x<NO_CS; x++) {
         SPI_CHECK(spihost[host]->device[x]==NULL, "not all CSses freed", ESP_ERR_INVALID_STATE);
+    }
+
+    if ( spihost[host]->dma_chan > 0 ) {
+        spicommon_dma_chan_free ( spihost[host]->dma_chan );
     }
     spihost[host]->hw->slave.trans_inten=0;
     spihost[host]->hw->slave.trans_done=0;
@@ -607,8 +620,8 @@ esp_err_t spi_device_queue_trans(spi_device_handle_t handle, spi_transaction_t *
         trans_buf.buffer_to_rcv = trans_desc->rx_buffer;
     }
     if ( trans_buf.buffer_to_rcv && handle->host->dma_chan && (!esp_ptr_dma_capable( trans_buf.buffer_to_rcv ) || ((int)trans_buf.buffer_to_rcv%4!=0)) ) {
-        //if rxbuf in the desc not DMA-capable, malloc a new one
-        trans_buf.buffer_to_rcv = heap_caps_malloc((trans_desc->rxlength+7)/8, MALLOC_CAP_DMA);
+        //if rxbuf in the desc not DMA-capable, malloc a new one. The rx buffer need to be length of multiples of 32 bits to avoid heap corruption.
+        trans_buf.buffer_to_rcv = heap_caps_malloc((trans_desc->rxlength+31)/8, MALLOC_CAP_DMA);
         if ( trans_buf.buffer_to_rcv==NULL ) return ESP_ERR_NO_MEM;
     }
     

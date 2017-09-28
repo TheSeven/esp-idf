@@ -29,6 +29,7 @@
 #include "i2c_rtc_clk.h"
 #include "soc_log.h"
 #include "sdkconfig.h"
+#include "xtensa/core-macros.h"
 
 
 #define MHZ (1000000)
@@ -510,6 +511,8 @@ uint32_t rtc_clk_apb_freq_get()
 
 void rtc_clk_init(rtc_clk_config_t cfg)
 {
+    rtc_cpu_freq_t cpu_source_before = rtc_clk_cpu_freq_get();
+    
     /* If we get a TG WDT system reset while running at 240MHz,
      * DPORT_CPUPERIOD_SEL register will be reset to 0 resulting in 120MHz
      * APB and CPU frequencies after reset. This will cause issues with XTAL
@@ -541,7 +544,8 @@ void rtc_clk_init(rtc_clk_config_t cfg)
     SET_PERI_REG_BITS(ANA_CONFIG_REG, ANA_CONFIG_M, ANA_CONFIG_M, ANA_CONFIG_S);
     CLEAR_PERI_REG_MASK(ANA_CONFIG_REG, I2C_APLL_M | I2C_BBPLL_M);
 
-    /* Estimate XTAL frequency if requested */
+    /* Estimate XTAL frequency */
+    rtc_xtal_freq_t est_xtal_freq = rtc_clk_xtal_freq_estimate();
     rtc_xtal_freq_t xtal_freq = cfg.xtal_freq;
     if (xtal_freq == RTC_XTAL_FREQ_AUTO) {
         if (clk_val_is_valid(READ_PERI_REG(RTC_XTAL_FREQ_REG))) {
@@ -549,17 +553,30 @@ void rtc_clk_init(rtc_clk_config_t cfg)
             xtal_freq = rtc_clk_xtal_freq_get();
         } else {
             /* Not set yet, estimate XTAL frequency based on RTC_FAST_CLK */
-            xtal_freq = rtc_clk_xtal_freq_estimate();
+            xtal_freq = est_xtal_freq;
             if (xtal_freq == RTC_XTAL_FREQ_AUTO) {
                 SOC_LOGW(TAG, "Can't estimate XTAL frequency, assuming 26MHz");
                 xtal_freq = RTC_XTAL_FREQ_26M;
             }
         }
+    } else if (!clk_val_is_valid(READ_PERI_REG(RTC_XTAL_FREQ_REG))) {
+        /* Exact frequency was set in sdkconfig, but still warn if autodetected
+         * frequency is different. If autodetection failed, worst case we get a
+         * bit of garbage output.
+         */
+        SOC_LOGW(TAG, "Possibly invalid CONFIG_ESP32_XTAL_FREQ setting (%dMHz). Detected %d MHz.",
+                xtal_freq, est_xtal_freq);
     }
+    uart_tx_wait_idle(0);
     rtc_clk_xtal_freq_update(xtal_freq);
     rtc_clk_apb_freq_update(xtal_freq * MHZ);
     /* Set CPU frequency */
     rtc_clk_cpu_freq_set(cfg.cpu_freq);
+    
+    /* Re-calculate the ccount to make time calculation correct. */    
+    uint32_t freq_before = rtc_clk_cpu_freq_value(cpu_source_before) / MHZ;
+    uint32_t freq_after = rtc_clk_cpu_freq_value(cfg.cpu_freq) / MHZ;
+    XTHAL_SET_CCOUNT( XTHAL_GET_CCOUNT() * freq_after / freq_before );
 
     /* Slow & fast clocks setup */
     if (cfg.slow_freq == RTC_SLOW_FREQ_32K_XTAL) {
