@@ -2841,7 +2841,7 @@ void vTaskSwitchContext( void )
 		//Exit critical region manually as well: release the mux now, interrupts will be re-enabled when we
 		//exit the function.
 #ifdef CONFIG_FREERTOS_PORTMUX_DEBUG
-		vPortCPUReleaseMutex( &xTaskQueueMutex, function, line );
+		vPortCPUReleaseMutex( &xTaskQueueMutex, __FUNCTION__, __LINE__ );
 #else
 		vPortCPUReleaseMutex( &xTaskQueueMutex );
 #endif
@@ -4617,7 +4617,7 @@ TickType_t uxReturn;
 	TickType_t xTimeToWake;
 	BaseType_t xReturn;
 
-		UNTESTED_FUNCTION();
+		//UNTESTED_FUNCTION();
 		taskENTER_CRITICAL(&xTaskQueueMutex);
 		{
 			/* Only block if a notification is not already pending. */
@@ -4741,7 +4741,7 @@ TickType_t uxReturn;
 	eNotifyValue eOriginalNotifyState;
 	BaseType_t xReturn = pdPASS;
 
-		UNTESTED_FUNCTION();
+		//UNTESTED_FUNCTION();
 		configASSERT( xTaskToNotify );
 		pxTCB = ( TCB_t * ) xTaskToNotify;
 
