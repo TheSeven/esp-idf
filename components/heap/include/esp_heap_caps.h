@@ -16,6 +16,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include "multi_heap.h"
+#include "esp_attr.h"
 
 /**
  * @brief Flags to indicate the capabilities of the various memory systems
@@ -40,7 +41,7 @@
  * This is called once in the IDF startup code. Do not call it
  * at other times.
  */
-void heap_caps_init();
+void heap_init() INITIRAM_ATTR;
 
 /**
  * @brief Enable heap(s) in memory regions where the startup stacks are located.
@@ -50,7 +51,7 @@ void heap_caps_init();
  * completely started, they do not use that memory anymore and heap(s) there can
  * be enabled.
  */
-void heap_caps_enable_nonos_stack_heaps();
+void heap_free_initram();
 
 /**
  * @brief Allocate a chunk of memory which has the given capabilities

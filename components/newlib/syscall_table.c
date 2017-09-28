@@ -28,6 +28,7 @@
 #include "sdkconfig.h"
 
 static struct _reent s_reent;
+static char* s_env;
 
 extern int _printf_float(struct _reent *rptr,
                void *pdata,
@@ -91,7 +92,7 @@ void esp_setup_syscall_table()
     syscall_table_ptr_pro = &s_stub_table;
     syscall_table_ptr_app = &s_stub_table;
     _GLOBAL_REENT = &s_reent;
-    environ = malloc(sizeof(char*));
+    environ = &s_env;
     environ[0] = NULL;
 }
 

@@ -38,6 +38,7 @@
 */
 
     .data
+    .section    .bss
     .align      16
     .global     port_IntStack
     .global     port_IntStackTop

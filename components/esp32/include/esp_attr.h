@@ -41,4 +41,8 @@
 // Forces read-only data into RTC slow memory. See "docs/deep-sleep-stub.rst"
 #define RTC_RODATA_ATTR __attribute__((section(".rtc.rodata")))
 
+#define INITIRAM_ATTR __attribute__((section(".initiram")))
+#define INITDRAM_ATTR __attribute__((section(".initdram")))
+#define INITBSS_ATTR __attribute__((section(".initbss")))
+
 #endif /* __ESP_ATTR_H__ */
