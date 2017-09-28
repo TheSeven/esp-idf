@@ -19,6 +19,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include "esp_err.h"
+#include "esp_attr.h"
 #include "sdkconfig.h"
 
 #ifdef __cplusplus
@@ -42,7 +43,7 @@ extern "C" {
  *  no need to call it from application code.
  *
  */
-void spi_flash_init();
+void spi_flash_init() INITIRAM_ATTR;
 
 /**
  * @brief  Get flash chip size, as set in binary image header

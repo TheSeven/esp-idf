@@ -16,6 +16,7 @@
 #define __ESP_NEWLIB_H__
 
 #include <sys/reent.h>
+#include "esp_attr.h"
 
 /**
  * Replacement for newlib's _REENT_INIT_PTR and __sinit.
@@ -31,7 +32,7 @@ void esp_reent_init(struct _reent* r);
  * Called from the startup code, not intended to be called from application
  * code.
  */
-void esp_setup_syscall_table();
+void esp_setup_syscall_table() INITIRAM_ATTR;
 
 /**
  * Update current microsecond time from RTC

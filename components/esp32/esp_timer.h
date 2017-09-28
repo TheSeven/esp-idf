@@ -45,6 +45,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "esp_err.h"
+#include "esp_attr.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -98,7 +99,7 @@ typedef struct {
  *      - ESP_ERR_INVALID_STATE if already initialized
  *      - other errors from interrupt allocator
  */
-esp_err_t esp_timer_init();
+esp_err_t esp_timer_init() INITIRAM_ATTR;
 
 /**
  * @brief De-initialize esp_timer library

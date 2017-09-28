@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <sdkconfig.h>
-
 #ifndef _ESP_DPORT_ACCESS_H_
 #define _ESP_DPORT_ACCESS_H_
+
+#include <sdkconfig.h>
+#include "esp_attr.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,7 +24,7 @@ extern "C" {
 
 void esp_dport_access_stall_other_cpu_start(void);
 void esp_dport_access_stall_other_cpu_end(void);
-void esp_dport_access_int_init(void);
+void esp_dport_access_int_init(void) INITIRAM_ATTR;
 void esp_dport_access_int_pause(void);
 void esp_dport_access_int_resume(void);
 

@@ -14,6 +14,7 @@
 #ifndef __ESP_CROSSCORE_INT_H
 #define __ESP_CROSSCORE_INT_H
 
+#include "esp_attr.h"
 
 /**
  * Initialize the crosscore interrupt system for this CPU.
@@ -24,7 +25,7 @@
  * called automatically by the startup code and should not
  * be called manually.
  */
-void esp_crosscore_int_init();
+void esp_crosscore_int_init() INITIRAM_ATTR;
 
 
 /**

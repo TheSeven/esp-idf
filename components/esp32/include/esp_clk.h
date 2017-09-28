@@ -14,6 +14,8 @@
 
 #pragma once
 
+#include "esp_attr.h"
+
 /**
  * @file esp_clk.h
  *
@@ -29,7 +31,7 @@
  * This function configures the CPU clock, RTC slow and fast clocks, and
  * performs RTC slow clock calibration.
  */
-void esp_clk_init(void);
+void esp_clk_init(void) INITIRAM_ATTR;
 
 
 /**
@@ -60,5 +62,5 @@ void esp_clk_slowclk_cal_set(uint32_t value);
  * Called from cpu_start.c, not intended to be called from other places.
  * This function disables clock of useless peripherals when cpu starts.
  */
-void esp_perip_clk_init(void);
+void esp_perip_clk_init(void) INITIRAM_ATTR;
 

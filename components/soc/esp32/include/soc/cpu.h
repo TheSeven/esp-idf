@@ -19,6 +19,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include "xtensa/corebits.h"
+#include "esp_attr.h"
 
 /* C macros for xtensa special register read/write/exchange */
 
@@ -62,8 +63,8 @@ static inline void cpu_write_itlb(unsigned vpn, unsigned attr)
  * 15 — no access, raise exception
  */
 
-static inline void cpu_configure_region_protection()
-{
+ static inline INITIRAM_ATTR void cpu_configure_region_protection()
+ {
     const uint32_t pages_to_protect[] = {0x00000000, 0x80000000, 0xa0000000, 0xc0000000, 0xe0000000};
     for (int i = 0; i < sizeof(pages_to_protect)/sizeof(pages_to_protect[0]); ++i) {
         cpu_write_dtlb(pages_to_protect[i], 0xf);

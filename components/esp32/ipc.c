@@ -73,14 +73,14 @@ static void IRAM_ATTR ipc_task(void* arg)
     vTaskDelete(NULL);
 }
 
+const char* const ipc_task_names[2] INITDRAM_ATTR = {"ipc0", "ipc1"};
 void esp_ipc_init()
 {
     s_ipc_mutex = xSemaphoreCreateMutex();
     s_ipc_ack = xSemaphoreCreateBinary();
-    const char* task_names[2] = {"ipc0", "ipc1"};
     for (int i = 0; i < portNUM_PROCESSORS; ++i) {
         s_ipc_sem[i] = xSemaphoreCreateBinary();
-        portBASE_TYPE res = xTaskCreatePinnedToCore(ipc_task, task_names[i], CONFIG_IPC_TASK_STACK_SIZE, (void*) i,
+        portBASE_TYPE res = xTaskCreatePinnedToCore(ipc_task, ipc_task_names[i], CONFIG_IPC_TASK_STACK_SIZE, (void*) i,
                                                     configMAX_PRIORITIES - 1, &s_ipc_tasks[i], i);
         assert(res == pdTRUE);
     }

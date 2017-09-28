@@ -16,6 +16,8 @@
 #ifndef __ESP_BROWNOUT_H
 #define __ESP_BROWNOUT_H
 
-void esp_brownout_init();
+#include "esp_attr.h"
+
+void esp_brownout_init() INITIRAM_ATTR;
 
 #endif

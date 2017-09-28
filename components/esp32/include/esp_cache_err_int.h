@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#pragma once
+
+#include "esp_attr.h"
 
 /**
  * @brief initialize cache invalid access interrupt
@@ -20,7 +23,7 @@
  * to interrupt input number ETS_CACHEERR_INUM (see soc/soc.h). It is called
  * from the startup code.
  */
-void esp_cache_err_int_init();
+void esp_cache_err_int_init() INITIRAM_ATTR;
 
 
 /**

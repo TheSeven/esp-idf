@@ -16,6 +16,7 @@
 #define __ESP_VFS_DEV_H__
 
 #include "esp_vfs.h"
+#include "esp_attr.h"
 
 /**
  * @brief Line ending settings
@@ -31,7 +32,7 @@ typedef enum {
  *
  * This function is called from startup code to enable serial output
  */
-void esp_vfs_dev_uart_register();
+void esp_vfs_dev_uart_register() INITIRAM_ATTR;
 
 /**
  * @brief Set the line endings expected to be received on UART

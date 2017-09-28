@@ -17,6 +17,7 @@
 #include <stdarg.h>
 #include "esp_err.h"
 #include "esp_app_trace_util.h" // ESP_APPTRACE_TMO_INFINITE
+#include "esp_attr.h"
 
 /**
  * Application trace data destinations bits.
@@ -33,7 +34,7 @@ typedef enum {
  *
  * @return ESP_OK on success, otherwise see esp_err_t
  */
-esp_err_t esp_apptrace_init();
+esp_err_t esp_apptrace_init() INITIRAM_ATTR;
 
 /**
  * @brief Configures down buffer.

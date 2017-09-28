@@ -16,6 +16,7 @@
 #define __ESP_IPC_H__
 
 #include <esp_err.h>
+#include "esp_attr.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,7 +44,7 @@ typedef void (*esp_ipc_func_t)(void* arg);
  * woken up to execute the callback provided to esp_ipc_call_nonblocking or
  * esp_ipc_call_blocking.
  */
-void esp_ipc_init();
+void esp_ipc_init() INITIRAM_ATTR;
 
 
 /**

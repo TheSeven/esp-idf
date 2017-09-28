@@ -14,12 +14,14 @@
 #ifndef ESP_CORE_DUMP_H_
 #define ESP_CORE_DUMP_H_
 
+#include "esp_attr.h"
+
 /**
  * @brief  Initializes core dump module internal data.
  *
  * @note  Should be called at system startup.
  */
-void esp_core_dump_init();
+void esp_core_dump_init() INITIRAM_ATTR;
 
 /**
  * @brief  Saves core dump to flash.

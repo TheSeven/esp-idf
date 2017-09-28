@@ -15,6 +15,8 @@
 #ifndef __ESP_TASK_WDT_H
 #define __ESP_TASK_WDT_H
 
+#include "esp_attr.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -43,7 +45,7 @@ This uses the TIMERG0 WDT.
   *         task watchdog is enabled in menuconfig.
   *
   */
-void esp_task_wdt_init();
+void esp_task_wdt_init() INITIRAM_ATTR;
 
 /**
   * @brief  Feed the watchdog. After the first feeding session, the watchdog will expect the calling

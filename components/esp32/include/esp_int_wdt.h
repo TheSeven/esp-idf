@@ -15,6 +15,8 @@
 #ifndef __ESP_INT_WDT_H
 #define __ESP_INT_WDT_H
 
+#include "esp_attr.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -42,7 +44,7 @@ This uses the TIMERG1 WDT.
   *         the interrupt watchdog is enabled in menuconfig.
   *
   */
-void esp_int_wdt_init();
+void esp_int_wdt_init() INITIRAM_ATTR;
 
 
 /**

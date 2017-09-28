@@ -1,6 +1,7 @@
 #include "soc/dport_reg.h"
 #include "sdkconfig.h"
 #include "esp_err.h"
+#include "esp_attr.h"
 #include "eri.h"
 #include "xtensa-debug-module.h"
 
@@ -32,7 +33,7 @@ typedef enum {
  *                    but memmap only has room for 1, or if Trax memmap is disabled 
  *                    entirely.
  */
-int trax_enable(trax_ena_select_t ena);
+int trax_enable(trax_ena_select_t ena) INITIRAM_ATTR;
 
 /**
  * @brief  Start a Trax trace on the current CPU
