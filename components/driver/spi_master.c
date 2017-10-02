@@ -84,6 +84,7 @@ typedef struct {
     bool no_gpio_matrix;
     int dma_chan;
     int max_transfer_sz;
+    uint32_t clk_mask;
 } spi_host_t;
 
 struct spi_device_t {
@@ -129,6 +130,10 @@ esp_err_t spi_bus_initialize(spi_host_device_t host, const spi_bus_config_t *bus
     spihost[host]=malloc(sizeof(spi_host_t));
     if (spihost[host]==NULL) goto nomem;
     memset(spihost[host], 0, sizeof(spi_host_t));
+
+    // Figure out clock gate bit
+    if (host == HSPI_HOST) spihost[host]->clk_mask = DPORT_SPI_CLK_EN;
+    else if (host == VSPI_HOST) spihost[host]->clk_mask = DPORT_SPI_CLK_EN_2;
     
     spicommon_bus_initialize_io(host, bus_config, dma_chan, SPICOMMON_BUSFLAG_MASTER|SPICOMMON_BUSFLAG_QUAD, &native);
     spihost[host]->no_gpio_matrix=native;
@@ -174,6 +179,11 @@ esp_err_t spi_bus_initialize(spi_host_device_t host, const spi_bus_config_t *bus
     spihost[host]->hw->slave.trans_inten=1;
     spihost[host]->hw->slave.trans_done=1;
 
+    // Shut off clock gate
+    periph_lock();
+    _DPORT_REG_CLR_BIT(DPORT_PERIP_CLK_EN_REG, spihost[host]->clk_mask);
+    periph_unlock();
+
     return ESP_OK;
 
 nomem:
@@ -194,6 +204,11 @@ esp_err_t spi_bus_free(spi_host_device_t host)
     for (x=0; x<NO_CS; x++) {
         SPI_CHECK(spihost[host]->device[x]==NULL, "not all CSses freed", ESP_ERR_INVALID_STATE);
     }
+
+    // Turn on clock gate
+    periph_lock();
+    _DPORT_REG_SET_BIT(DPORT_PERIP_CLK_EN_REG, spihost[host]->clk_mask);
+    periph_unlock();
 
     if ( spihost[host]->dma_chan > 0 ) {
         spicommon_dma_chan_free ( spihost[host]->dma_chan );
@@ -254,6 +269,11 @@ esp_err_t spi_bus_add_device(spi_host_device_t host, spi_device_interface_config
         gpio_set_direction(dev_config->spics_io_num, GPIO_MODE_OUTPUT);
         spicommon_cs_initialize(host, dev_config->spics_io_num, freecs, spihost[host]->no_gpio_matrix == false);
     }
+
+    // Turn on clock gate and modify some regs, abusing the periph spinlock as an SMP-safe critical section.
+    periph_lock();
+    uint32_t old = _DPORT_REG_READ(DPORT_PERIP_CLK_EN_REG);
+    _DPORT_REG_SET_BIT(DPORT_PERIP_CLK_EN_REG, spihost[host]->clk_mask);
     if (dev_config->flags&SPI_DEVICE_CLK_AS_CS) {
         spihost[host]->hw->pin.master_ck_sel |= (1<<freecs);
     } else {
@@ -264,6 +284,9 @@ esp_err_t spi_bus_add_device(spi_host_device_t host, spi_device_interface_config
     } else {
         spihost[host]->hw->pin.master_cs_pol &= (1<<freecs);
     }
+    _DPORT_REG_WRITE(DPORT_PERIP_CLK_EN_REG, old);
+    periph_unlock();
+
     *handle=dev;
     return ESP_OK;
 
@@ -411,6 +434,10 @@ static void IRAM_ATTR spi_intr(void *arg)
     if (i==NO_CS) {
         //No packet waiting. Disable interrupt.
         esp_intr_disable(host->intr);
+        // Turn off clock gate
+        periph_lock();
+        _DPORT_REG_CLR_BIT(DPORT_PERIP_CLK_EN_REG, host->clk_mask);
+        periph_unlock();
     } else {
         host->hw->slave.trans_done=0; //clear int bit
         //We have a transaction. Send it.
@@ -649,8 +676,19 @@ esp_err_t spi_device_queue_trans(spi_device_handle_t handle, spi_transaction_t *
         trans_buf.buffer_to_send = (uint32_t*)txdata;
     }
 
+    // Enqueue the new transfer. This needs to happen *before* turning on the clock gate.
+    // If a transfer is already in progress, the gate will be on anyway, so this won't block infinitely.
+    // However, if a transfer would finish between enabling the gate and submitting the transfer to the queue,
+    // we might run into a situation where we'd turn on the IRQ with the clock gate being off.
     r=xQueueSend(handle->trans_queue, (void*)&trans_buf, ticks_to_wait);
     if (!r) return ESP_ERR_TIMEOUT;
+
+    // Turn on clock gate. This needs to happen before enabling the IRQ, or that would re-trigger infinitely.
+    periph_lock();
+    _DPORT_REG_SET_BIT(DPORT_PERIP_CLK_EN_REG, handle->host->clk_mask);
+    periph_unlock();
+
+    // Finally turn on the IRQ.
     esp_intr_enable(handle->host->intr);
     return ESP_OK;
 }

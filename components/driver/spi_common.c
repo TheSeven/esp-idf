@@ -195,8 +195,11 @@ bool spicommon_dma_chan_claim (int dma_chan)
         // get the channel only when it's not claimed yet.
         spi_dma_chan_enabled |= DMA_CHANNEL_ENABLED(dma_chan);
         ret = true;
+        periph_module_enable( PERIPH_SPI_DMA_MODULE );
+        periph_lock();
+        _DPORT_REG_CLR_BIT(DPORT_PERIP_CLK_EN_REG, DPORT_SPI_DMA_CLK_EN);
+        periph_unlock();
     }
-    periph_module_enable( PERIPH_SPI_DMA_MODULE );
     portEXIT_CRITICAL(&spi_dma_spinlock);
 
     return ret;
@@ -396,8 +399,10 @@ bool IRAM_ATTR spicommon_dmaworkaround_req_reset(int dmachan, dmaworkaround_cb_t
         ret = false;
     } else {
         //Reset DMA
-        DPORT_SET_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_SPI_DMA_RST);
-        DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_SPI_DMA_RST);
+        periph_lock();
+        _DPORT_REG_SET_BIT(DPORT_PERIP_RST_EN_REG, DPORT_SPI_DMA_RST);
+        _DPORT_REG_CLR_BIT(DPORT_PERIP_RST_EN_REG, DPORT_SPI_DMA_RST);
+        periph_unlock();
         ret = true;
     }
     portEXIT_CRITICAL(&dmaworkaround_mux);
@@ -415,12 +420,20 @@ void IRAM_ATTR spicommon_dmaworkaround_idle(int dmachan)
     dmaworkaround_channels_busy[dmachan-1] = 0;
     if (dmaworkaround_waiting_for_chan == dmachan) {
         //Reset DMA
-        DPORT_SET_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_SPI_DMA_RST);
-        DPORT_CLEAR_PERI_REG_MASK(DPORT_PERIP_RST_EN_REG, DPORT_SPI_DMA_RST);
+        periph_lock();
+        _DPORT_REG_SET_BIT(DPORT_PERIP_RST_EN_REG, DPORT_SPI_DMA_RST);
+        _DPORT_REG_CLR_BIT(DPORT_PERIP_RST_EN_REG, DPORT_SPI_DMA_RST);
+        periph_unlock();
         dmaworkaround_waiting_for_chan = 0;
         //Call callback
         dmaworkaround_cb(dmaworkaround_cb_arg);
 
+    }
+    if (!dmaworkaround_channels_busy[(dmachan - 1) ^ 1])
+    {
+        periph_lock();
+        _DPORT_REG_CLR_BIT(DPORT_PERIP_CLK_EN_REG, DPORT_SPI_DMA_CLK_EN);
+        periph_unlock();
     }
     portEXIT_CRITICAL(&dmaworkaround_mux);
 }
@@ -428,6 +441,12 @@ void IRAM_ATTR spicommon_dmaworkaround_idle(int dmachan)
 void IRAM_ATTR spicommon_dmaworkaround_transfer_active(int dmachan)
 {
     portENTER_CRITICAL(&dmaworkaround_mux);
+    if (!dmaworkaround_channels_busy[(dmachan - 1) ^ 1])
+    {
+        periph_lock();
+        _DPORT_REG_SET_BIT(DPORT_PERIP_CLK_EN_REG, DPORT_SPI_DMA_CLK_EN);
+        periph_unlock();
+    }
     dmaworkaround_channels_busy[dmachan-1] = 1;
     portEXIT_CRITICAL(&dmaworkaround_mux);
 }
