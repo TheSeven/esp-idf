@@ -22,6 +22,9 @@
 extern "C" {
 #endif
 
+extern void periph_lock();
+extern void periph_unlock();
+
 typedef enum {
     PERIPH_LEDC_MODULE = 0,
     PERIPH_UART0_MODULE,

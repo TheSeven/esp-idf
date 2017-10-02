@@ -21,6 +21,18 @@
 
 static portMUX_TYPE periph_spinlock = portMUX_INITIALIZER_UNLOCKED;
 
+void periph_lock()
+{
+    portENTER_CRITICAL(&periph_spinlock);
+    DPORT_STALL_OTHER_CPU_START();
+}
+
+void periph_unlock()
+{
+    DPORT_STALL_OTHER_CPU_END();
+    portEXIT_CRITICAL(&periph_spinlock);
+}
+
 void periph_module_enable(periph_module_t periph)
 {
     portENTER_CRITICAL(&periph_spinlock);
