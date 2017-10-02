@@ -22,6 +22,13 @@
 extern "C" {
 #endif
 
+#if !defined(BOOTLOADER_BUILD) && !defined(CONFIG_FREERTOS_UNICORE)
+#include "freertos/freertos.h"
+#define DPORT_CORE_STATE_IDLE        0
+#define DPORT_CORE_STATE_RUNNING     1
+extern uint32_t volatile dport_core_state[portNUM_PROCESSORS];
+#endif
+
 void esp_dport_access_stall_other_cpu_start(void);
 void esp_dport_access_stall_other_cpu_end(void);
 void esp_dport_access_int_init(void) INITIRAM_ATTR;

@@ -18,6 +18,9 @@
 #include <stdbool.h>
 #include "esp_attr.h"
 #include "esp_freertos_hooks.h"
+#include "soc/dport_reg.h"
+#include "freertos/freertos.h"
+#include "freertos/portable.h"
 
 //We use just a static array here because it's not expected many components will need
 //an idle or tick hook.
@@ -25,6 +28,8 @@
 
 static esp_freertos_idle_cb_t idle_cb[MAX_HOOKS]={0};
 static esp_freertos_tick_cb_t tick_cb[MAX_HOOKS]={0};
+
+volatile bool request_core_sleep[2];
 
 void IRAM_ATTR esp_vApplicationTickHook() 
 {
@@ -47,10 +52,16 @@ void esp_vApplicationIdleHook()
             if (!r) doWait=false;
         }
     }
-    if (doWait) {
-        //Wait for whatever interrupt comes next... this should save some power.
-        asm("waiti 0");
+    int core = xPortGetCoreID();
+    if (request_core_sleep[core])
+    {
+        BaseType_t oldInterruptLevel = portENTER_CRITICAL_NESTED();
+        dport_core_state[core] = DPORT_CORE_STATE_IDLE;
+        while (request_core_sleep[core]) asm("waiti 3");
+        dport_core_state[core] = DPORT_CORE_STATE_RUNNING;
+        portEXIT_CRITICAL_NESTED(oldInterruptLevel);
     }
+    else if (doWait) asm("waiti 0");
 }
 
 

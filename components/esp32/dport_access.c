@@ -44,9 +44,7 @@
 #ifndef CONFIG_FREERTOS_UNICORE
 static portMUX_TYPE g_dport_mux = portMUX_INITIALIZER_UNLOCKED;
 
-#define DPORT_CORE_STATE_IDLE        0
-#define DPORT_CORE_STATE_RUNNING     1
-static uint32_t volatile dport_core_state[portNUM_PROCESSORS];      //cpu is already run
+uint32_t volatile dport_core_state[portNUM_PROCESSORS];
 
 /* these global variables are accessed from interrupt vector, hence not declared as static */
 uint32_t volatile dport_access_start[portNUM_PROCESSORS];      //dport register could be accessed

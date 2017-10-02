@@ -29,6 +29,8 @@ extern "C"
 typedef bool (*esp_freertos_idle_cb_t)();
 typedef void (*esp_freertos_tick_cb_t)();
 
+extern volatile bool request_core_sleep[2];
+
 /**
   * @brief  Register a callback to be called on the freertos idle hook
   *         The callback should return true if it's okay for the core to
