@@ -31,7 +31,7 @@ static const char *TAG = "esp_image";
 #define ESP_ROM_CHECKSUM_INITIAL 0xEF
 
 /* Headroom to ensure between stack SP (at time of checking) and data loaded from flash */
-#define STACK_LOAD_HEADROOM 32768
+extern int _initstack, _initstack_top;
 
 #ifdef BOOTLOADER_BUILD
 /* 64 bits of random data to obfuscate loaded RAM with, until verification is complete
@@ -282,11 +282,10 @@ static esp_err_t process_segment(int index, uint32_t flash_addr, esp_image_segme
     if (do_load) {
         /* Before loading segment, check it doesn't clobber bootloader RAM... */
         uint32_t end_addr = load_addr + data_len;
-        if (end_addr < 0x40000000) {
-            intptr_t sp = (intptr_t)get_sp();
-            if (end_addr > sp - STACK_LOAD_HEADROOM) {
+        if (load_addr < (uint32_t)&_initstack_top) {
+            if (end_addr > (uint32_t)&_initstack) {
                 ESP_LOGE(TAG, "Segment %d end address 0x%08x too high (bootloader stack 0x%08x liimit 0x%08x)",
-                         index, end_addr, sp, sp - STACK_LOAD_HEADROOM);
+                         index, end_addr, (uint32_t)&_initstack, (uint32_t)&_initstack_top);
                 return ESP_ERR_IMAGE_INVALID;
             }
         }

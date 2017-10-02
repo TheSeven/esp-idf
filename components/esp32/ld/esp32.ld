@@ -1,61 +1,39 @@
 #include "sdkconfig.h"
 
-/* If BT is not built at all */
 #ifndef CONFIG_BT_RESERVE_DRAM
 #define CONFIG_BT_RESERVE_DRAM 0
+#endif
+#ifndef CONFIG_BT_ENABLED
+#define CONFIG_BT_ENABLED 0
+#endif
+#ifndef CONFIG_MEMMAP_TRACEMEM_TWOBANKS
+#define CONFIG_MEMMAP_TRACEMEM_TWOBANKS 0
+#endif
+
+#if CONFIG_BT_ENABLED
+#define DRAM_BASE 0x3FFAFF10
+#else
+#define DRAM_BASE 0x3FFAE2A0
+#endif
+#if CONFIG_MEMMAP_TRACEMEM_TWOBANKS
+#define SRAM_END 0x3FFF8000
+#else
+#define SRAM_END 0x40000000
 #endif
 
 MEMORY
 {
-  /* All these values assume the flash cache is on, and have the blocks this uses subtracted from the length
-  of the various regions. The 'data access port' dram/drom regions map to the same iram/irom regions but
-  are connected to the data port of the CPU and eg allow bytewise access. */
-
-  /* IRAM for PRO cpu. Not sure if happy with this, this is MMU area... */
-  iram0_0_seg (RX) :                 org = 0x40080000, len = 0x20000
-
-  /* Even though the segment name is iram, it is actually mapped to flash
-  */
-  iram0_2_seg (RX) :                 org = 0x400D0018, len = 0x330000-0x18
-
-  /*
-    (0x18 offset above is a convenience for the app binary image generation. Flash cache has 64KB pages. The .bin file
-    which is flashed to the chip has a 0x18 byte file header. Setting this offset makes it simple to meet the flash
-    cache MMU's constraint that (paddr % 64KB == vaddr % 64KB).)
-  */
-
-
-  /* Shared data RAM, excluding memory reserved for ROM bss/data/stack.
-
-     Enabling Bluetooth & Trace Memory features in menuconfig will decrease
-     the amount of RAM available.
-  */
-  dram0_0_seg (RW) :                 org = 0x3FFB0000 + CONFIG_BT_RESERVE_DRAM,
-                                     len = 0x50000 - CONFIG_TRACEMEM_RESERVE_DRAM - CONFIG_BT_RESERVE_DRAM
-
-  /* Flash mapped constant data */
   drom0_0_seg (R) :                  org = 0x3F400018, len = 0x400000-0x18
-
-  /* (See iram0_2_seg for meaning of 0x18 offset in the above.) */
-
-  /* RTC fast memory (executable). Persists over deep sleep.
-   */
-  rtc_iram_seg(RWX) :                org = 0x400C0000, len = 0x2000
-
-  /* RTC slow memory (data accessible). Persists over deep sleep.
-
-     Start of RTC slow memory is reserved for ULP co-processor code + data, if enabled.
-  */
-  rtc_slow_seg(RW)  :                org = 0x50000000 + CONFIG_ULP_COPROC_RESERVE_MEM,
-                                     len = 0x1000 - CONFIG_ULP_COPROC_RESERVE_MEM
+  dram0_0_seg (RW) : org = DRAM_BASE, len = 0x3FFE0000 - DRAM_BASE
+  sram0_0_seg (RW) : org = 0x3FFE0440, len = SRAM_END - 0x3FFE0440
+  iram0_0_seg (RX) : org = 0x40080000, len = 0x20000
+  rtc_iram_seg (RWX) : org = 0x400C0000, len = 0x2000
+  iram0_2_seg (RX) :                 org = 0x400D0018, len = 0x330000-0x18
+  rtc_slow_seg(RW) : org = 0x50000000 + CONFIG_ULP_COPROC_RESERVE_MEM, len = 0x1000 - CONFIG_ULP_COPROC_RESERVE_MEM
 }
 
-/* Heap ends at top of dram0_0_seg */
-_heap_end = 0x40000000 - CONFIG_TRACEMEM_RESERVE_DRAM;
-
-//TODO: This is probably broken in a lot of ways, but not used by current projects.
 /*  Default entry point:  */
-ENTRY(call_start_cpu0);
+ENTRY(cpu0_entrypoint);
 
 SECTIONS
 {
@@ -122,7 +100,7 @@ SECTIONS
 
     *(.UserEnter.literal);
     *(.UserEnter.text);
-    . = ALIGN (16);
+    . = ALIGN(4);
     *(.entry.text)
     *(.init.literal)
     *(.init)
@@ -155,8 +133,9 @@ SECTIONS
     INCLUDE esp32.spiram.rom-functions-iram.ld
     _iram_text_end = ABSOLUTE(.);
     . = ALIGN(4);
+    iheap_handle = .;
     _iheap_start = ABSOLUTE(.);
-    LONG(0);
+    LONG(iheap_mtx);
     LONG(_iheap_end - _iheap_start + _inittext_start - _inittext_end - 0x28);
     LONG(_iheap_end - _iheap_start + _inittext_start - _inittext_end - 0x28);
     LONG(_iheap_last_block);
@@ -164,32 +143,37 @@ SECTIONS
     LONG(_iheap_free_block);
     _iheap_init_block = ABSOLUTE(.);
     LONG(_iheap_free_block);
+    initiram_handle = .;
     _inittext_start = ABSOLUTE(.);
     *(.initiram.literal .initiram .initiram.literal.* .initiram.*)
+    . = ALIGN(4);
     _inittext_end = ABSOLUTE(.);
     _iheap_free_block = ABSOLUTE(.);
     LONG(_iheap_last_block | 1);
     LONG(_iheap_last_block);
   } > iram0_0_seg
 
-  .iram0.free (NOLOAD) :
-  {
-    . = _iheap_end - 4;
-  } > iram0_0_seg
-
-  .iram0.end :
+  .iram0.end 0x4009fff8 :
   {
     _iheap_last_block = ABSOLUTE(.);
     LONG(1);
+    LONG(0);
+    _iheap_end = ABSOLUTE(.);
   } > iram0_0_seg
 
 #if CONFIG_BT_ENABLED
   .dram0.btgap0_header :
   {
+    dheap_handle = .;
     _dheap_start = ABSOLUTE(.);
-    LONG(0);
-    LONG(DHEAP_SIZE);
-    LONG(DHEAP_SIZE);
+    LONG(dheap_mtx);
+#if CONFIG_BT_DRAM_RELEASE
+    LONG(_dheap_end - _dheap_start + bss_start - _data_end + initdata_start - initbss_end - 0x9040);
+    LONG(_dheap_end - _dheap_start + bss_start - _data_end + initdata_start - initbss_end - 0x9040);
+#else
+    LONG(_dheap_end - _dheap_start + bss_start - _data_end + initdata_start - initbss_end - 0x10030);
+    LONG(_dheap_end - _dheap_start + bss_start - _data_end + initdata_start - initbss_end - 0x10030);
+#endif
     LONG(_dheap_last_block);
     LONG(_dheap_btgap0_block | 1);
     LONG(_dheap_btgap0_block);
@@ -198,72 +182,44 @@ SECTIONS
     LONG(_dheap_btgap1_block);
   } > dram0_0_seg
 
-  .dram0.btgap0 (NOLOAD) :
+  .dram0.btmem0_header 0x3ffafffc :
   {
-    . = 0x3ffafffc;
     _dheap_btmem0_block = ABSOLUTE(.);
-  } > dram0_0_seg
-
 #if CONFIG_BT_DRAM_RELEASE
-  .dram0.btmem0_header :
-  {
     LONG(_dheap_btgap1_block);
   } > dram0_0_seg
 
-  .dram0.btmem0 (NOLOAD) :
-  {
-    . = 0x3ffb3000;
-  } > dram0_0_seg
-
-  .dram0.btgap1_header :
+  .dram0.btgap1_header 0x3ffb3000 :
   {
     _dheap_btgap1_block = ABSOLUTE(.);
     LONG(_dheap_btmem1_block | 1);
     LONG(_dheap_btgap2_block);
   } > dram0_0_seg
 
-  .dram0.btgap1 (NOLOAD) :
-  {
-    . = 0x3ffb7ffc;
-  } > dram0_0_seg
-
-  .dram0.btmem1_header :
+  .dram0.btmem1_header 0x3ffb7ffc :
   {
     _dheap_btmem1_block = ABSOLUTE(.);
     LONG(_dheap_btgap2_block);
   } > dram0_0_seg
 
-  .dram0.btmem1 (NOLOAD) :
-  {
-    . = 0x3ffbbb28;
-  } > dram0_0_seg
-
-  .dram0.btgap2_header :
+  .dram0.btgap2_header 0x3ffbbb28 :
   {
     _dheap_btgap2_block = ABSOLUTE(.);
     LONG(_dheap_btmem2_block | 1);
     LONG(_dheap_free_block);
   } > dram0_0_seg
 
-  .dram0.btgap2 (NOLOAD) :
+  .dram0.btgap2 0x3ffbdb24 :
   {
-    . = 0x3ffbdb24;
     _dheap_btmem2_block = ABSOLUTE(.);
-  } > dram0_0_seg
 #endif
-
-  .dram0.btmem2_header :
-  {
     LONG(_dheap_init_block);
   } > dram0_0_seg
 
-  .dram0.btmem2 (NOLOAD) :
-  {
-    . = 0x3ffc0000;
-  } > dram0_0_seg
-#endif
-
+  .dram0.bss 0x3ffc0000 (NOLOAD) :
+#else
   .dram0.bss (NOLOAD) :
+#endif
   {
     _bss_start = ABSOLUTE(.);
     *(.dynsbss)
@@ -280,7 +236,7 @@ SECTIONS
     *(.share.mem)
     *(.gnu.linkonce.b.*)
     *(COMMON)
-    . = ALIGN (4);
+    . = ALIGN(4);
     _bss_end = ABSOLUTE(.);
   } >dram0_0_seg
 
@@ -306,29 +262,43 @@ SECTIONS
     *libheap.a:multi_heap.o(.rodata .rodata.*)
     *libheap.a:multi_heap_poisoning.o(.rodata .rodata.*)
     INCLUDE esp32.spiram.rom-functions-dram.ld
+    KEEP(*(.heapmtx .heapmtx.*))
     _data_end = ABSOLUTE(.);
 #if !CONFIG_BT_ENABLED
     . = ALIGN(4);
+    dheap_handle = .;
     _dheap_start = ABSOLUTE(.);
-    LONG(0);
-    LONG(DHEAP_SIZE);
-    LONG(DHEAP_SIZE);
+    LONG(dheap_mtx);
+    LONG(_dheap_end - _dheap_start + _initdata_start - _initbss_end - 0x28);
+    LONG(_dheap_end - _dheap_start + _initdata_start - _initbss_end - 0x28);
     LONG(_dheap_last_block);
     LONG(_dheap_init_block | 1);
     LONG(_dheap_free_block);
 #endif
     _dheap_init_block = ABSOLUTE(.);
     LONG(_dheap_free_block);
+    initdram_handle = .;
     _initdata_start = ABSOLUTE(.);
     *(.initdram)
     *(.initdram.*)
     _initdata_end = ABSOLUTE(.);
+    . = ALIGN(4);
   } > dram0_0_seg
 
   .dram0.initbss (NOLOAD) :
   {
+    . = ALIGN(16);
+    _cpu0_initstack = .;
+    . += 0x400;
+    _cpu0_initstack_top = .;
+    _cpu1_initstack = .;
+    . += 0x200;
+    _cpu1_initstack_top = .;
+    _initbss_start = ABSOLUTE(.);
     *(.initbss)
     *(.initbss.*)
+    . = ALIGN(4);
+    _initbss_end = ABSOLUTE(.);
   } > dram0_0_seg
 
   .dram0.free_header :
@@ -338,23 +308,21 @@ SECTIONS
     LONG(_dheap_last_block);
   } > dram0_0_seg
 
-  .dram0.free (NOLOAD) :
-  {
-    . = _dheap_end - 4;
-  } > dram0_0_seg
-
-  .dram0.end :
+  .dram0.end 0x3ffdfff8 :
   {
     _dheap_last_block = ABSOLUTE(.);
     LONG(1);
+    LONG(0);
+    _dheap_end = ABSOLUTE(.);
   } > dram0_0_seg
 
   .sram0.heap :
   {
+    sheap_handle = .;
     _sheap_start = ABSOLUTE(.);
-    LONG(0);
-    LONG(_sheap_end - _sheap_start - 0x28);
-    LONG(_sheap_end - _sheap_start - 0x28);
+    LONG(sheap_mtx);
+    LONG(_sheap_end - _sheap_start - 0x37c);
+    LONG(_sheap_end - _sheap_start - 0x37c);
     LONG(_sheap_last_block);
     LONG(_sheap_gap_block | 1);
     LONG(_sheap_gap_block);
@@ -363,38 +331,29 @@ SECTIONS
     LONG(_sheap_free_block);
   } > sram0_0_seg
 
-  .sram0.gap (NOLOAD) :
-  {
-    . = 0x3ffe3ffc;
-  } > sram0_0_seg
-
-  .sram0.rom_header :
+  .sram0.rom_header 0x3ffe3ffc :
   {
     _sheap_rom_block = ABSOLUTE(.);
     LONG(_sheap_free_block);
   } > sram0_0_seg
 
-  .sram0.rom (NOLOAD) :
-  {
-    . = 0x3ffe4350;
-  } > sram0_0_seg
-
-  .sram0.free_header :
+  .sram0.free_header 0x3ffe4350 :
   {
     _sheap_free_block = ABSOLUTE(.);
     LONG(_sheap_last_block | 1);
     LONG(_sheap_last_block);
   } > sram0_0_seg
 
-  .sram0.free (NOLOAD) :
-  {
-    . = _sheap_end - 4;
-  } > sram0_0_seg
-
-  .sram0.end :
+#if CONFIG_MEMMAP_TRACEMEM
+  .sram0.end 0x3fff7ff8 :
+#else
+  .sram0.end 0x3ffffff8 :
+#endif
   {
     _sheap_last_block = ABSOLUTE(.);
     LONG(1);
+    LONG(0);
+    _sheap_end = ABSOLUTE(.);
   } > sram0_0_seg
 
   .flash.rodata :

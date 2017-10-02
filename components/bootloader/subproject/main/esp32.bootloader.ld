@@ -15,11 +15,11 @@ MEMORY
   /* IRAM POOL1, used for APP CPU cache. We can abuse it in bootloader because APP CPU is still held in reset, the main app enables APP CPU cache */
   iram_seg (RWX) :           org = 0x40078000, len = 0x8000
   /* 64k at the end of DRAM, after ROM bootloader stack */
-  dram_seg (RW) :                  	org = 0x3FFF0000, len = 0x10000
+  dram_seg (RW) : org = 0x3FFAE2C4, len = 0x1D3C
 }
 
 /*  Default entry point:  */
-ENTRY(call_start_cpu0);
+ENTRY(cpu0_entrypoint);
 
 
 SECTIONS
@@ -36,7 +36,10 @@ SECTIONS
   /* Shared RAM */
   .dram0.bss (NOLOAD) :
   {
-    . = ALIGN (8);
+    . = ALIGN(16);
+    _initstack = .;
+    . += 0x200;
+    _initstack_top = .;
     _bss_start = ABSOLUTE(.);
     *(.dynsbss)
     *(.sbss)
