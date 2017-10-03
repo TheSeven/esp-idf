@@ -600,8 +600,8 @@ static void IRAM_ATTR spi_intr(void *arg)
         } else {
             host->hw->addr = trans->addr << (32 - dev->cfg.address_bits);
         }
-        host->hw->user.usr_mosi=( (!(dev->cfg.flags & SPI_DEVICE_HALFDUPLEX) && trans_buf->buffer_to_rcv) || trans_buf->buffer_to_send)?1:0;
-        host->hw->user.usr_miso=(trans_buf->buffer_to_rcv)?1:0;
+        host->hw->user.usr_mosi=( (!(dev->cfg.flags & SPI_DEVICE_HALFDUPLEX) && trans->rxlength && trans_buf->buffer_to_rcv) || (trans->length && trans_buf->buffer_to_send))?1:0;
+        host->hw->user.usr_miso=(trans->rxlength && trans_buf->buffer_to_rcv)?1:0;
 
         //Call pre-transmission callback, if any
         if (dev->cfg.pre_cb) dev->cfg.pre_cb(trans);
