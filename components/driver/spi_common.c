@@ -416,38 +416,46 @@ bool IRAM_ATTR spicommon_dmaworkaround_reset_in_progress()
 
 void IRAM_ATTR spicommon_dmaworkaround_idle(int dmachan)
 {
+    dmachan -= 1;
     portENTER_CRITICAL(&dmaworkaround_mux);
-    dmaworkaround_channels_busy[dmachan-1] = 0;
-    if (dmaworkaround_waiting_for_chan == dmachan) {
-        //Reset DMA
-        periph_lock();
-        _DPORT_REG_SET_BIT(DPORT_PERIP_RST_EN_REG, DPORT_SPI_DMA_RST);
-        _DPORT_REG_CLR_BIT(DPORT_PERIP_RST_EN_REG, DPORT_SPI_DMA_RST);
-        periph_unlock();
-        dmaworkaround_waiting_for_chan = 0;
-        //Call callback
-        dmaworkaround_cb(dmaworkaround_cb_arg);
-
-    }
-    if (!dmaworkaround_channels_busy[(dmachan - 1) ^ 1])
+    if (dmaworkaround_channels_busy[dmachan])
     {
-        periph_lock();
-        _DPORT_REG_CLR_BIT(DPORT_PERIP_CLK_EN_REG, DPORT_SPI_DMA_CLK_EN);
-        periph_unlock();
+        dmaworkaround_channels_busy[dmachan] = 0;
+        if (dmaworkaround_waiting_for_chan == dmachan + 1)
+        {
+            //Reset DMA
+            periph_lock();
+            _DPORT_REG_SET_BIT(DPORT_PERIP_RST_EN_REG, DPORT_SPI_DMA_RST);
+            _DPORT_REG_CLR_BIT(DPORT_PERIP_RST_EN_REG, DPORT_SPI_DMA_RST);
+            periph_unlock();
+            dmaworkaround_waiting_for_chan = 0;
+            //Call callback
+            dmaworkaround_cb(dmaworkaround_cb_arg);
+        }
+        if (!dmaworkaround_channels_busy[dmachan ^ 1])
+        {
+            periph_lock();
+            _DPORT_REG_CLR_BIT(DPORT_PERIP_CLK_EN_REG, DPORT_SPI_DMA_CLK_EN);
+            periph_unlock();
+        }
     }
     portEXIT_CRITICAL(&dmaworkaround_mux);
 }
 
 void IRAM_ATTR spicommon_dmaworkaround_transfer_active(int dmachan)
 {
+    dmachan -= 1;
     portENTER_CRITICAL(&dmaworkaround_mux);
-    if (!dmaworkaround_channels_busy[(dmachan - 1) ^ 1])
+    if (!dmaworkaround_channels_busy[dmachan])
     {
-        periph_lock();
-        _DPORT_REG_SET_BIT(DPORT_PERIP_CLK_EN_REG, DPORT_SPI_DMA_CLK_EN);
-        periph_unlock();
+        dmaworkaround_channels_busy[dmachan] = 1;
+        if (!dmaworkaround_channels_busy[dmachan ^ 1])
+        {
+            periph_lock();
+            _DPORT_REG_SET_BIT(DPORT_PERIP_CLK_EN_REG, DPORT_SPI_DMA_CLK_EN);
+            periph_unlock();
+        }
     }
-    dmaworkaround_channels_busy[dmachan-1] = 1;
     portEXIT_CRITICAL(&dmaworkaround_mux);
 }
 
