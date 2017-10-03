@@ -418,9 +418,6 @@ static void IRAM_ATTR spi_intr(void *arg)
         prevCs=host->cur_cs;
         host->cur_cs = NO_CS;
     }
-    //Tell common code DMA workaround that our DMA channel is idle. If needed, the code will do a DMA reset.
-    if (host->dma_chan) spicommon_dmaworkaround_idle(host->dma_chan);
-
     /*------------ new transaction starts here ------------------*/
     //ToDo: This is a stupidly simple low-cs-first priority scheme. Make this configurable somehow. - JD
     for (i=0; i<NO_CS; i++) {
@@ -432,6 +429,8 @@ static void IRAM_ATTR spi_intr(void *arg)
         }
     }
     if (i==NO_CS) {
+        //Tell common code DMA workaround that our DMA channel is idle. If needed, the code will do a DMA reset.
+        if (host->dma_chan) spicommon_dmaworkaround_idle(host->dma_chan);
         //No packet waiting. Disable interrupt.
         esp_intr_disable(host->intr);
         // Turn off clock gate
