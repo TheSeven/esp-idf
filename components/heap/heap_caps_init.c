@@ -14,6 +14,7 @@
 #include "heap_private.h"
 #include <multi_heap.h>
 #include <esp_heap_caps.h>
+#include <esp_log.h>
 
 
 portMUX_TYPE iheap_mtx __attribute__((section(".heapmtx"))) = portMUX_INITIALIZER_UNLOCKED;
@@ -35,6 +36,8 @@ void heap_init()
 
 void heap_free_initram()
 {
-    heap_caps_free(&initdram_handle);
+    ESP_LOGI("heap_free_initram", "Releasing %d bytes of init code...", (&initiram_handle)[-1] - (void*)&initiram_handle + 4);
     heap_caps_free(&initiram_handle);
+    ESP_LOGI("heap_free_initram", "Releasing %d bytes of init data...", (&initdram_handle)[-1] - (void*)&initdram_handle + 4);
+    heap_caps_free(&initdram_handle);
 }
