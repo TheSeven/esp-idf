@@ -52,7 +52,7 @@ Routine to allocate a bit of memory with certain capabilities. caps is a bitfiel
 IRAM_ATTR void* heap_caps_malloc(size_t size, uint32_t caps)
 {
     void* ret = NULL;
-    if (caps & (MALLOC_CAP_8BIT | MALLOC_CAP_DMA))
+    if (caps & (MALLOC_CAP_8BIT | MALLOC_CAP_DMA | MALLOC_CAP_DEFAULT))
     {
         ret = multi_heap_malloc(&dheap_handle, size);
         if (ret) return ret;
