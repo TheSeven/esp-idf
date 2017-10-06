@@ -19,7 +19,7 @@
 #include "esp_attr.h"
 #include "esp_freertos_hooks.h"
 #include "soc/dport_reg.h"
-#include "freertos/freertos.h"
+#include "freertos/FreeRTOS.h"
 #include "freertos/portable.h"
 
 //We use just a static array here because it's not expected many components will need
