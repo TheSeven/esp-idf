@@ -45,7 +45,7 @@ size_t multi_heap_get_allocated_size(multi_heap_handle_t heap, void *p)
 multi_heap_handle_t multi_heap_register(void *start, size_t size)
     __attribute__((alias("multi_heap_register_impl")));
 
-void multi_get_heap_info(multi_heap_handle_t heap, multi_heap_info_t *info)
+void multi_heap_get_info(multi_heap_handle_t heap, multi_heap_info_t *info)
     __attribute__((alias("multi_heap_get_info_impl")));
 
 size_t multi_heap_free_size(multi_heap_handle_t heap)
@@ -605,7 +605,7 @@ void multi_heap_dump(multi_heap_handle_t heap)
     MULTI_HEAP_LOCK(heap->lock);
     printf("Heap start %p end %p\nFirst free block %p\n", &heap->first_block, heap->last_block, heap->first_block.next_free);
     for(heap_block_t *b = &heap->first_block; b != NULL; b = get_next_block(b)) {
-        printf("Block %p data size 0x%08zx bytes next block %p", b, block_data_size(b), get_next_block(b));
+        printf("Block %p data size 0x%08x bytes next block %p", b, block_data_size(b), get_next_block(b));
         if (is_free(b)) {
             printf(" FREE. Next free %p\n", b->next_free);
         } else {
