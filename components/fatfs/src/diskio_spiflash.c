@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifdef FATFS_ENABLE_SPIFLASH
+
 #include <string.h>
 #include "diskio.h"
 #include "ffconf.h"
@@ -115,3 +117,5 @@ BYTE ff_diskio_get_pdrv_wl(wl_handle_t flash_handle)
     }
     return 0xff;
 }
+
+#endif

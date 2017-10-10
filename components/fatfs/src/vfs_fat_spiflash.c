@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifdef FATFS_ENABLE_SPIFLASH
+
 #include <stdlib.h>
 #include <string.h>
 #include "esp_log.h"
@@ -120,3 +122,5 @@ esp_err_t esp_vfs_fat_spiflash_unmount(const char *base_path, wl_handle_t wl_han
     if (err == ESP_OK) err = err_drv;
     return err;
 }
+
+#endif

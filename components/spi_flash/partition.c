@@ -22,7 +22,6 @@
 #include "esp_flash_data_types.h"
 #include "esp_spi_flash.h"
 #include "esp_partition.h"
-#include "esp_flash_encrypt.h"
 #include "esp_log.h"
 
 
@@ -167,13 +166,6 @@ static esp_err_t load_partitions()
         item->info.type = it->type;
         item->info.subtype = it->subtype;
         item->info.encrypted = it->flags & PART_FLAG_ENCRYPTED;
-        if (esp_flash_encryption_enabled() && (
-                it->type == PART_TYPE_APP
-                || (it->type == PART_TYPE_DATA && it->subtype == PART_SUBTYPE_DATA_OTA))) {
-            /* If encryption is turned on, all app partitions and OTA data
-               are always encrypted */
-            item->info.encrypted = true;
-        }
 
         // it->label may not be zero-terminated
         strncpy(item->info.label, (const char*) it->label, sizeof(it->label));

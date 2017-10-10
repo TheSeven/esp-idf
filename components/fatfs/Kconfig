@@ -105,4 +105,8 @@ config FATFS_MAX_LFN
    help
       Maximum long filename length. Can be reduced to save RAM.
 
+config FATFS_ENABLE_SPIFLASH
+   bool "Support VFS on wear-leveled SPI flash"
+   default n
+
 endmenu

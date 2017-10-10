@@ -28,7 +28,6 @@
 #include "esp_ipc.h"
 #include "esp_attr.h"
 #include "esp_spi_flash.h"
-#include "esp_flash_encrypt.h"
 #include "esp_log.h"
 #include "cache_utils.h"
 #include "esp_spiram.h"

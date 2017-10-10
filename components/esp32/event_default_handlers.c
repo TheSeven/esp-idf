@@ -22,7 +22,9 @@
 #include "esp_event.h"
 #include "esp_event_loop.h"
 #include "esp_task.h"
+#ifdef CONFIG_ETHERNET_ENABLE
 #include "esp_eth.h"
+#endif
 #include "esp_system.h"
 
 #include "rom/ets_sys.h"
@@ -57,10 +59,12 @@ static esp_err_t system_event_sta_disconnected_handle_default(system_event_t *ev
 static esp_err_t system_event_sta_got_ip_default(system_event_t *event);
 static esp_err_t system_event_sta_lost_ip_default(system_event_t *event);
 
+#ifdef CONFIG_ETHERNET_ENABLE
 static esp_err_t system_event_eth_start_handle_default(system_event_t *event);
 static esp_err_t system_event_eth_stop_handle_default(system_event_t *event);
 static esp_err_t system_event_eth_connected_handle_default(system_event_t *event);
 static esp_err_t system_event_eth_disconnected_handle_default(system_event_t *event);
+#endif
 
 /* Default event handler functions
 
@@ -68,6 +72,7 @@ static esp_err_t system_event_eth_disconnected_handle_default(system_event_t *ev
 */
 static system_event_handler_t default_event_handlers[SYSTEM_EVENT_MAX] = { 0 };
 
+#ifdef CONFIG_ETHERNET_ENABLE
 esp_err_t system_event_eth_start_handle_default(system_event_t *event)
 {
     tcpip_adapter_ip_info_t eth_ip;
@@ -123,6 +128,7 @@ esp_err_t system_event_eth_disconnected_handle_default(system_event_t *event)
     tcpip_adapter_down(TCPIP_ADAPTER_IF_ETH);
     return ESP_OK;
 }
+#endif
 
 static esp_err_t system_event_sta_got_ip_default(system_event_t *event)
 {
@@ -408,6 +414,7 @@ void esp_event_set_default_wifi_handlers()
      esp_register_shutdown_handler((shutdown_handler_t)esp_wifi_stop);
 }
 
+#ifdef CONFIG_ETHERNET_ENABLE
 void esp_event_set_default_eth_handlers()
 {
      default_event_handlers[SYSTEM_EVENT_ETH_START]           = system_event_eth_start_handle_default;
@@ -415,3 +422,4 @@ void esp_event_set_default_eth_handlers()
      default_event_handlers[SYSTEM_EVENT_ETH_CONNECTED]       = system_event_eth_connected_handle_default;
      default_event_handlers[SYSTEM_EVENT_ETH_DISCONNECTED]    = system_event_eth_disconnected_handle_default;
 }
+#endif

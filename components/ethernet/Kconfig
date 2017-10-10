@@ -1,7 +1,14 @@
 menu Ethernet
 
+menuconfig ETHERNET_ENABLE
+    bool "Wired Ethernet support"
+    default n
+
+if ETHERNET_ENABLE
+
 config DMA_RX_BUF_NUM
     int "Number of DMA RX buffers"
+    depends on ETHERNET_ENABLE
     range 3 20
     default 10
     help
@@ -12,6 +19,7 @@ config DMA_RX_BUF_NUM
 
 config DMA_TX_BUF_NUM
     int "Number of DMA RX buffers"
+    depends on ETHERNET_ENABLE
     range 3 20
     default 10
     help
@@ -21,6 +29,7 @@ config DMA_TX_BUF_NUM
 
 config EMAC_L2_TO_L3_RX_BUF_MODE
     bool "Enable copy between Layer2 and Layer3"
+    depends on ETHERNET_ENABLE
     default n
     help
         If this options is selected, a copy of each received buffer will be created when
@@ -37,9 +46,12 @@ config EMAC_L2_TO_L3_RX_BUF_MODE
 
 config EMAC_TASK_PRIORITY
     int "EMAC_TASK_PRIORITY"
+    depends on ETHERNET_ENABLE
     default 20
     range 3 22
     help
         Ethernet MAC task priority.
+
+endif
 
 endmenu

@@ -28,8 +28,10 @@
 #include "esp_phy_init.h"
 #include "esp_system.h"
 #include "esp_log.h"
+#ifdef CONFIG_ESP32_PHY_CALIBRATION_AND_DATA_STORAGE
 #include "nvs.h"
 #include "nvs_flash.h"
+#endif
 #include "sdkconfig.h"
 
 #include "phy.h"
@@ -144,6 +146,7 @@ void esp_phy_release_init_data(const esp_phy_init_data_t* init_data)
 #endif // CONFIG_ESP32_PHY_INIT_DATA_IN_PARTITION
 
 
+#ifdef CONFIG_ESP32_PHY_CALIBRATION_AND_DATA_STORAGE
 // PHY calibration data handling functions
 static const char* PHY_NAMESPACE = "phy";
 static const char* PHY_CAL_VERSION_KEY = "cal_version";
@@ -255,6 +258,7 @@ static esp_err_t store_cal_data_to_nvs_handle(nvs_handle handle,
     err = nvs_set_blob(handle, PHY_CAL_DATA_KEY, cal_data, sizeof(*cal_data));
     return err;
 }
+#endif
 
 void esp_phy_load_cal_and_init(void)
 {

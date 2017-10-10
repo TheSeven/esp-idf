@@ -20,7 +20,10 @@
 #include "driver/sdmmc_host.h"
 #include "driver/sdspi_host.h"
 #include "ff.h"
+#ifdef CONFIG_VFS_ENABLE_SPIFLASH
 #include "wear_levelling.h"
+#endif
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -144,6 +147,7 @@ esp_err_t esp_vfs_fat_sdmmc_mount(const char* base_path,
  */
 esp_err_t esp_vfs_fat_sdmmc_unmount();
 
+#ifdef CONFIG_VFS_ENABLE_SPIFLASH
 /**
  * @brief Convenience function to initialize FAT filesystem in SPI flash and register it in VFS
  *
@@ -186,6 +190,7 @@ esp_err_t esp_vfs_fat_spiflash_mount(const char* base_path,
  *      - ESP_ERR_INVALID_STATE if esp_vfs_fat_spiflash_mount hasn't been called
  */
  esp_err_t esp_vfs_fat_spiflash_unmount(const char* base_path, wl_handle_t wl_handle);
+#endif
 
 #ifdef __cplusplus
 }
