@@ -63,6 +63,7 @@ static void vfs_fat_seekdir(void* ctx, DIR* pdir, long offset);
 static int vfs_fat_closedir(void* ctx, DIR* pdir);
 static int vfs_fat_mkdir(void* ctx, const char* name, mode_t mode);
 static int vfs_fat_rmdir(void* ctx, const char* name);
+static int vfs_fat_fsync(void* ctx, int fd);
 
 static vfs_fat_ctx_t* s_fat_ctxs[_VOLUMES] = { NULL, NULL };
 //backwards-compatibility with esp_vfs_fat_unregister()
@@ -119,7 +120,8 @@ esp_err_t esp_vfs_fat_register(const char* base_path, const char* fat_drive, siz
         .seekdir_p = &vfs_fat_seekdir,
         .telldir_p = &vfs_fat_telldir,
         .mkdir_p = &vfs_fat_mkdir,
-        .rmdir_p = &vfs_fat_rmdir
+        .rmdir_p = &vfs_fat_rmdir,
+        .fsync_p = &vfs_fat_fsync,
     };
     size_t ctx_size = sizeof(vfs_fat_ctx_t) + max_files * sizeof(FIL);
     vfs_fat_ctx_t* fat_ctx = (vfs_fat_ctx_t*) calloc(1, ctx_size);
@@ -635,6 +637,19 @@ static int vfs_fat_rmdir(void* ctx, const char* name)
     prepend_drive_to_path(fat_ctx, &name, NULL);
     FRESULT res = f_unlink(name);
     _lock_release(&fat_ctx->lock);
+    if (res != FR_OK) {
+        ESP_LOGD(TAG, "%s: fresult=%d", __func__, res);
+        errno = fresult_to_errno(res);
+        return -1;
+    }
+    return 0;
+}
+
+static int vfs_fat_fsync(void* ctx, int fd)
+{
+    vfs_fat_ctx_t* fat_ctx = (vfs_fat_ctx_t*) ctx;
+    FIL* file = &fat_ctx->files[fd];
+    FRESULT res = f_sync(file);
     if (res != FR_OK) {
         ESP_LOGD(TAG, "%s: fresult=%d", __func__, res);
         errno = fresult_to_errno(res);
