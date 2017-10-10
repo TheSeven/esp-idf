@@ -42,6 +42,8 @@
 
 /* Enable all Espressif-only options */
 
+#define LWIP_COMPAT_SOCKETS 0
+
 /*
    -----------------------------------------------
    ---------- Platform specific locking ----------

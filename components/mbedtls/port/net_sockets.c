@@ -64,7 +64,7 @@ static int mbedtls_net_errno(int fd)
     int sock_errno = 0;
     u32_t optlen = sizeof(sock_errno);
 
-    getsockopt(fd, SOL_SOCKET, SO_ERROR, &sock_errno, &optlen);
+    lwip_getsockopt(fd, SOL_SOCKET, SO_ERROR, &sock_errno, &optlen);
 
     return sock_errno;
 }
@@ -95,31 +95,31 @@ int mbedtls_net_connect( mbedtls_net_context *ctx, const char *host, const char 
     hints.ai_socktype = proto == MBEDTLS_NET_PROTO_UDP ? SOCK_DGRAM : SOCK_STREAM;
     hints.ai_protocol = proto == MBEDTLS_NET_PROTO_UDP ? IPPROTO_UDP : IPPROTO_TCP;
 
-    if ( getaddrinfo( host, port, &hints, &addr_list ) != 0 ) {
+    if ( lwip_getaddrinfo( host, port, &hints, &addr_list ) != 0 ) {
         return ( MBEDTLS_ERR_NET_UNKNOWN_HOST );
     }
 
     /* Try the sockaddrs until a connection succeeds */
     ret = MBEDTLS_ERR_NET_UNKNOWN_HOST;
     for ( cur = addr_list; cur != NULL; cur = cur->ai_next ) {
-        int fd = socket( cur->ai_family, cur->ai_socktype, cur->ai_protocol );
+        int fd = lwip_socket( cur->ai_family, cur->ai_socktype, cur->ai_protocol );
 
         if ( fd < 0 ) {
             ret = MBEDTLS_ERR_NET_SOCKET_FAILED;
             continue;
         }
 
-        if ( connect( fd, cur->ai_addr, cur->ai_addrlen ) == 0 ) {
+        if ( lwip_connect( fd, cur->ai_addr, cur->ai_addrlen ) == 0 ) {
             ctx->fd = fd; // connected!
             ret = 0;
             break;
         }
 
-        close( fd );
+        lwip_close( fd );
         ret = MBEDTLS_ERR_NET_CONNECT_FAILED;
     }
 
-    freeaddrinfo( addr_list );
+    lwip_freeaddrinfo( addr_list );
 
     return ( ret );
 }
@@ -142,14 +142,14 @@ int mbedtls_net_bind( mbedtls_net_context *ctx, const char *bind_ip, const char 
     hints.ai_socktype = proto == MBEDTLS_NET_PROTO_UDP ? SOCK_DGRAM : SOCK_STREAM;
     hints.ai_protocol = proto == MBEDTLS_NET_PROTO_UDP ? IPPROTO_UDP : IPPROTO_TCP;
 
-    if ( getaddrinfo( bind_ip, port, &hints, &addr_list ) != 0 ) {
+    if ( lwip_getaddrinfo( bind_ip, port, &hints, &addr_list ) != 0 ) {
         return ( MBEDTLS_ERR_NET_UNKNOWN_HOST );
     }
 
     /* Try the sockaddrs until a binding succeeds */
     ret = MBEDTLS_ERR_NET_UNKNOWN_HOST;
     for ( cur = addr_list; cur != NULL; cur = cur->ai_next ) {
-        int fd = socket( cur->ai_family, cur->ai_socktype, cur->ai_protocol );
+        int fd = lwip_socket( cur->ai_family, cur->ai_socktype, cur->ai_protocol );
         if ( fd < 0 ) {
             ret = MBEDTLS_ERR_NET_SOCKET_FAILED;
             continue;
@@ -158,9 +158,9 @@ int mbedtls_net_bind( mbedtls_net_context *ctx, const char *bind_ip, const char 
         /*SO_REUSEADDR option dafault is disable in source code(lwip)*/
 #if SO_REUSE
         int n = 1;
-        if ( setsockopt( fd, SOL_SOCKET, SO_REUSEADDR,
+        if ( lwip_setsockopt( fd, SOL_SOCKET, SO_REUSEADDR,
                          (const char *) &n, sizeof( n ) ) != 0 ) {
-            close( fd );
+                            lwip_close( fd );
             ret = MBEDTLS_ERR_NET_SOCKET_FAILED;
             continue;
         }
@@ -169,16 +169,16 @@ int mbedtls_net_bind( mbedtls_net_context *ctx, const char *bind_ip, const char 
         struct sockaddr_in *serv_addr = NULL;
         serv_addr = (struct sockaddr_in *)cur->ai_addr;
         serv_addr->sin_addr.s_addr = htonl(INADDR_ANY); /* Any incoming interface */
-        if ( bind( fd, (struct sockaddr *)serv_addr, cur->ai_addrlen ) != 0 ) {
-            close( fd );
+        if ( lwip_bind( fd, (struct sockaddr *)serv_addr, cur->ai_addrlen ) != 0 ) {
+            lwip_close( fd );
             ret = MBEDTLS_ERR_NET_BIND_FAILED;
             continue;
         }
 
         /* Listen only makes sense for TCP */
         if ( proto == MBEDTLS_NET_PROTO_TCP ) {
-            if ( listen( fd, MBEDTLS_NET_LISTEN_BACKLOG ) != 0 ) {
-                close( fd );
+            if ( lwip_listen( fd, MBEDTLS_NET_LISTEN_BACKLOG ) != 0 ) {
+                lwip_close( fd );
                 ret = MBEDTLS_ERR_NET_LISTEN_FAILED;
                 continue;
             }
@@ -190,7 +190,7 @@ int mbedtls_net_bind( mbedtls_net_context *ctx, const char *bind_ip, const char 
         break;
     }
 
-    freeaddrinfo( addr_list );
+    lwip_freeaddrinfo( addr_list );
 
     return ( ret );
 
@@ -245,7 +245,7 @@ int mbedtls_net_accept( mbedtls_net_context *bind_ctx,
     socklen_t type_len = (socklen_t) sizeof( type );
 
     /* Is this a TCP or UDP socket? */
-    if ( getsockopt( bind_ctx->fd, SOL_SOCKET, SO_TYPE,
+    if ( lwip_getsockopt( bind_ctx->fd, SOL_SOCKET, SO_TYPE,
                      (void *) &type, (socklen_t *) &type_len ) != 0 ||
             ( type != SOCK_STREAM && type != SOCK_DGRAM ) ) {
         return ( MBEDTLS_ERR_NET_ACCEPT_FAILED );
@@ -253,13 +253,13 @@ int mbedtls_net_accept( mbedtls_net_context *bind_ctx,
 
     if ( type == SOCK_STREAM ) {
         /* TCP: actual accept() */
-        ret = client_ctx->fd = (int) accept( bind_ctx->fd,
+        ret = client_ctx->fd = (int) lwip_accept( bind_ctx->fd,
                                              (struct sockaddr *) &client_addr, &n );
     } else {
         /* UDP: wait for a message, but keep it in the queue */
         char buf[1] = { 0 };
 
-        ret = recvfrom( bind_ctx->fd, buf, sizeof( buf ), MSG_PEEK,
+        ret = lwip_recvfrom( bind_ctx->fd, buf, sizeof( buf ), MSG_PEEK,
                         (struct sockaddr *) &client_addr, &n );
 
     }
@@ -278,7 +278,7 @@ int mbedtls_net_accept( mbedtls_net_context *bind_ctx,
         struct sockaddr_in local_addr;
         int one = 1;
 
-        if ( connect( bind_ctx->fd, (struct sockaddr *) &client_addr, n ) != 0 ) {
+        if ( lwip_connect( bind_ctx->fd, (struct sockaddr *) &client_addr, n ) != 0 ) {
             return ( MBEDTLS_ERR_NET_ACCEPT_FAILED );
         }
 
@@ -286,16 +286,16 @@ int mbedtls_net_accept( mbedtls_net_context *bind_ctx,
         bind_ctx->fd   = -1; /* In case we exit early */
 
         n = sizeof( struct sockaddr_in );
-        if ( getsockname( client_ctx->fd,
+        if ( lwip_getsockname( client_ctx->fd,
                           (struct sockaddr *) &local_addr, &n ) != 0 ||
-                ( bind_ctx->fd = (int) socket( AF_INET,
+                ( bind_ctx->fd = (int) lwip_socket( AF_INET,
                                                SOCK_DGRAM, IPPROTO_UDP ) ) < 0 ||
-                setsockopt( bind_ctx->fd, SOL_SOCKET, SO_REUSEADDR,
+                                               lwip_setsockopt( bind_ctx->fd, SOL_SOCKET, SO_REUSEADDR,
                             (const char *) &one, sizeof( one ) ) != 0 ) {
             return ( MBEDTLS_ERR_NET_SOCKET_FAILED );
         }
 
-        if ( bind( bind_ctx->fd, (struct sockaddr *) &local_addr, n ) != 0 ) {
+        if ( lwip_bind( bind_ctx->fd, (struct sockaddr *) &local_addr, n ) != 0 ) {
             return ( MBEDTLS_ERR_NET_BIND_FAILED );
         }
     }
@@ -319,12 +319,12 @@ int mbedtls_net_accept( mbedtls_net_context *bind_ctx,
  */
 int mbedtls_net_set_block( mbedtls_net_context *ctx )
 {
-    return ( fcntl( ctx->fd, F_SETFL, fcntl( ctx->fd, F_GETFL, 0 ) & ~O_NONBLOCK ) );
+    return ( lwip_fcntl( ctx->fd, F_SETFL, lwip_fcntl( ctx->fd, F_GETFL, 0 ) & ~O_NONBLOCK ) );
 }
 
 int mbedtls_net_set_nonblock( mbedtls_net_context *ctx )
 {
-    return ( fcntl( ctx->fd, F_SETFL, fcntl( ctx->fd, F_GETFL, 0 ) | O_NONBLOCK ) );
+    return ( lwip_fcntl( ctx->fd, F_SETFL, lwip_fcntl( ctx->fd, F_GETFL, 0 ) | O_NONBLOCK ) );
 }
 
 /*
@@ -335,7 +335,7 @@ void mbedtls_net_usleep( unsigned long usec )
     struct timeval tv;
     tv.tv_sec  = usec / 1000000;
     tv.tv_usec = usec % 1000000;
-    select( 0, NULL, NULL, NULL, &tv );
+    lwip_select( 0, NULL, NULL, NULL, &tv );
 }
 
 /*
@@ -351,7 +351,7 @@ int mbedtls_net_recv( void *ctx, unsigned char *buf, size_t len )
         return ( MBEDTLS_ERR_NET_INVALID_CONTEXT );
     }
 
-    ret = (int) read( fd, buf, len );
+    ret = (int) lwip_read( fd, buf, len );
 
     if ( ret < 0 ) {
         if ( net_would_block( ctx, &error ) != 0 ) {
@@ -393,7 +393,7 @@ int mbedtls_net_recv_timeout( void *ctx, unsigned char *buf, size_t len,
     tv.tv_sec  = timeout / 1000;
     tv.tv_usec = ( timeout % 1000 ) * 1000;
 
-    ret = select( fd + 1, &read_fds, NULL, NULL, timeout == 0 ? NULL : &tv );
+    ret = lwip_select( fd + 1, &read_fds, NULL, NULL, timeout == 0 ? NULL : &tv );
 
     /* Zero fds ready means we timed out */
     if ( ret == 0 ) {
@@ -426,7 +426,7 @@ int mbedtls_net_send( void *ctx, const unsigned char *buf, size_t len )
         return ( MBEDTLS_ERR_NET_INVALID_CONTEXT );
     }
 
-    ret = (int) write( fd, buf, len );
+    ret = (int) lwip_write( fd, buf, len );
 
     if ( ret < 0 ) {
         if ( net_would_block( ctx, &error ) != 0 ) {
@@ -456,8 +456,8 @@ void mbedtls_net_free( mbedtls_net_context *ctx )
         return;
     }
 
-    shutdown( ctx->fd, 2 );
-    close( ctx->fd );
+    lwip_shutdown( ctx->fd, 2 );
+    lwip_close( ctx->fd );
 
     ctx->fd = -1;
 }

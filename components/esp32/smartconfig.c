@@ -37,7 +37,7 @@ static int sc_ack_send_get_errno(int fd)
     int sock_errno = 0;
     u32_t optlen = sizeof(sock_errno);
 
-    getsockopt(fd, SOL_SOCKET, SO_ERROR, &sock_errno, &optlen);
+    lwip_getsockopt(fd, SOL_SOCKET, SO_ERROR, &sock_errno, &optlen);
 
     return sock_errno;
 }
@@ -77,20 +77,20 @@ static void sc_ack_send_task(void *pvParameters)
             }
 
             /* Create UDP socket. */
-            send_sock = socket(AF_INET, SOCK_DGRAM, 0);
+            send_sock = lwip_socket(AF_INET, SOCK_DGRAM, 0);
             if (send_sock < 0) {
                 ESP_LOGE(TAG,  "Creat udp socket failed");
                 free(ack);
                 vTaskDelete(NULL);
             }
 
-            setsockopt(send_sock, SOL_SOCKET, SO_BROADCAST | SO_REUSEADDR, &optval, sizeof(int));
+            lwip_setsockopt(send_sock, SOL_SOCKET, SO_BROADCAST | SO_REUSEADDR, &optval, sizeof(int));
 
             while (s_sc_ack_send) {
                 /* Send smartconfig ACK every 100ms. */
                 vTaskDelay(100 / portTICK_RATE_MS);
 
-                sendlen = sendto(send_sock, &ack->ctx, ack_len, 0, (struct sockaddr*) &server_addr, sin_size);
+                sendlen = lwip_sendto(send_sock, &ack->ctx, ack_len, 0, (struct sockaddr*) &server_addr, sin_size);
                 if (sendlen > 0) {
                     /* Totally send 30 smartconfig ACKs. Then smartconfig is successful. */
                     if (packet_count++ >= SC_ACK_MAX_COUNT) {
@@ -100,7 +100,7 @@ static void sc_ack_send_task(void *pvParameters)
                         if (ack->cb) {
                             ack->cb(SC_STATUS_LINK_OVER, remote_ip);
                         }
-                        close(send_sock);
+                        lwip_close(send_sock);
                         free(ack);
                         vTaskDelete(NULL);
                     }
@@ -112,7 +112,7 @@ static void sc_ack_send_task(void *pvParameters)
                         continue;
                     }
                     ESP_LOGE(TAG, "send failed, errno %d", err);
-                    close(send_sock);
+                    lwip_close(send_sock);
                     free(ack);
                     vTaskDelete(NULL);
                 }
