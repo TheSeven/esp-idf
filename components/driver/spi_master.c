@@ -543,7 +543,7 @@ static void IRAM_ATTR spi_intr(void *arg)
 
 
         //Fill DMA descriptors
-        if (trans_buf->buffer_to_rcv) {
+        if (trans_buf->buffer_to_rcv && trans->rxlength) {
             host->hw->user.usr_miso_highpart=0;
             if (host->dma_chan == 0) {
                 //No need to setup anything; we'll copy the result out of the work registers directly later.
@@ -561,7 +561,7 @@ static void IRAM_ATTR spi_intr(void *arg)
             }
         }
 
-        if (trans_buf->buffer_to_send) {
+        if (trans_buf->buffer_to_send && trans->length) {
             if (host->dma_chan == 0) {
                 //Need to copy data to registers manually
                 for (int x=0; x < trans->length; x+=32) {
