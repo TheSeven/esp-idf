@@ -17,6 +17,18 @@ config HEAP_POISONING_COMPREHENSIVE
     bool "Comprehensive"
 endchoice
 
+config HEAP_BOOT_STATS
+    bool "Show heap statistics on boot"
+    default y
+
+config HEAP_BOOT_CHECK
+    bool "Check heap integrity on boot"
+    default n
+
+config HEAP_BOOT_DUMP
+    bool "Dump heap allocations on boot"
+    default n
+
 config HEAP_TRACING
     bool "Enable heap tracing"
     help
