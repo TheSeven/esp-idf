@@ -69,6 +69,116 @@ IRAM_ATTR void* heap_caps_malloc(size_t size, uint32_t caps)
     }
 }
 
+
+#define MALLOC_DISABLE_EXTERNAL_ALLOCS -1
+//Dual-use: -1 (=MALLOC_DISABLE_EXTERNAL_ALLOCS) disables allocations in external memory, >=0 sets the limit for allocations preferring internal memory.
+static int malloc_alwaysinternal_limit=MALLOC_DISABLE_EXTERNAL_ALLOCS;
+
+void heap_caps_malloc_extmem_enable(size_t limit)
+{
+    malloc_alwaysinternal_limit=limit;
+}
+
+/*
+ Default memory allocation implementation. Should return standard 8-bit memory. malloc() essentially resolves to this function.
+*/
+IRAM_ATTR void *heap_caps_malloc_default( size_t size )
+{
+    if (malloc_alwaysinternal_limit==MALLOC_DISABLE_EXTERNAL_ALLOCS) {
+        return heap_caps_malloc( size, MALLOC_CAP_DEFAULT | MALLOC_CAP_INTERNAL);
+    } else {
+        void *r;
+        if (size <= malloc_alwaysinternal_limit) {
+            r=heap_caps_malloc( size, MALLOC_CAP_DEFAULT | MALLOC_CAP_INTERNAL );
+        } else {
+            r=heap_caps_malloc( size, MALLOC_CAP_DEFAULT | MALLOC_CAP_SPIRAM );
+        }
+        if (r==NULL) {
+            //try again while being less picky
+            r=heap_caps_malloc( size, MALLOC_CAP_DEFAULT );
+        }
+        return r;
+    }
+}
+
+/*
+ Same for realloc()
+ Note: keep the logic in here the same as in heap_caps_malloc_default (or merge the two as soon as this gets more complex...)
+ */
+IRAM_ATTR void *heap_caps_realloc_default( void *ptr, size_t size )
+{
+    if (malloc_alwaysinternal_limit==MALLOC_DISABLE_EXTERNAL_ALLOCS) {
+        return heap_caps_realloc( ptr, size, MALLOC_CAP_DEFAULT | MALLOC_CAP_INTERNAL );
+    } else {
+        void *r;
+        if (size <= malloc_alwaysinternal_limit) {
+            r=heap_caps_realloc( ptr, size, MALLOC_CAP_DEFAULT | MALLOC_CAP_INTERNAL );
+        } else {
+            r=heap_caps_realloc( ptr, size, MALLOC_CAP_DEFAULT | MALLOC_CAP_SPIRAM );
+        }
+        if (r==NULL && size>0) {
+            //We needed to allocate memory, but we didn't. Try again while being less picky.
+            r=heap_caps_realloc( ptr, size, MALLOC_CAP_DEFAULT );
+        }
+        return r;
+    }
+}
+
+/*
+ Memory allocation as preference in decreasing order.
+ */
+IRAM_ATTR void *heap_caps_malloc_prefer( size_t size, size_t num, ... )
+{
+    va_list argp;
+    va_start( argp, num );
+    void *r = NULL;
+    while (num--) {
+        uint32_t caps = va_arg( argp, uint32_t );
+        r = heap_caps_malloc( size, caps );
+        if (r != NULL) {
+            break;
+        }
+    }
+    va_end( argp );
+    return r;
+}
+
+/*
+ Memory reallocation as preference in decreasing order.
+ */
+IRAM_ATTR void *heap_caps_realloc_prefer( void *ptr, size_t size, size_t num, ... )
+{
+    va_list argp;
+    va_start( argp, num );
+    void *r = NULL;
+    while (num--) {
+        uint32_t caps = va_arg( argp, uint32_t );
+        r = heap_caps_realloc( ptr, size, caps );
+        if (r != NULL || size == 0) {
+            break;
+        }
+    }
+    va_end( argp );
+    return r;
+}
+
+/*
+ Memory callocation as preference in decreasing order.
+ */
+IRAM_ATTR void *heap_caps_calloc_prefer( size_t n, size_t size, size_t num, ... )
+{
+    va_list argp;
+    va_start( argp, num );
+    void *r = NULL;
+    while (num--) {
+        uint32_t caps = va_arg( argp, uint32_t );
+        r = heap_caps_calloc( n, size, caps );
+        if (r != NULL) break;
+    }
+    va_end( argp );
+    return r;
+}
+
 /* Find the heap which belongs to ptr, or return NULL if it's
    not in any heap.
 
@@ -129,6 +239,16 @@ IRAM_ATTR void *heap_caps_realloc(void *ptr, size_t size, int caps)
     return new_p;
 }
 
+IRAM_ATTR void* heap_caps_calloc(size_t n, size_t size, uint32_t caps)
+{
+    void *r;
+    r = heap_caps_malloc(n * size, caps);
+    if (r != NULL) {
+        bzero(r, n * size);
+    }
+    return r;
+}
+
 size_t heap_caps_get_free_size(uint32_t caps)
 {
     size_t ret = 0;
@@ -183,19 +303,14 @@ void heap_caps_print_heap_info(uint32_t caps)
     printf("    free %d allocated %d min_free %d largest_free_block %d\n", info.total_free_bytes, info.total_allocated_bytes, info.minimum_free_bytes, info.largest_free_block);
 }
 
-/*
- Default memory allocation implementation. Should return standard 8-bit memory. malloc() essentially resolves to this function.
-*/
-IRAM_ATTR void *heap_caps_malloc_default( size_t size )
+bool heap_caps_check_integrity_all(bool print_errors)
 {
-    return heap_caps_malloc( size, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL );
+    return heap_caps_check_integrity(MALLOC_CAP_INVALID, print_errors);
 }
 
-/*
- Same for realloc()
- Note: keep the logic in here the same as in heap_caps_malloc_default (or merge the two as soon as this gets more complex...)
- */
-IRAM_ATTR void *heap_caps_realloc_default( void *ptr, size_t size )
+bool heap_caps_check_integrity_addr(intptr_t addr, bool print_errors)
 {
-    return heap_caps_realloc( ptr, size, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL );
+    multi_heap_handle_t heap = find_containing_heap((void *)addr);
+    if (heap == NULL) return false;
+    return multi_heap_check(heap, print_errors);
 }
