@@ -25,8 +25,6 @@ extern "C" {
 
 typedef struct multi_heap_info heap_t;
 
-extern heap_t iheap_handle, dheap_handle, sheap_handle;
-extern int _iheap_start, _iheap_end, _dheap_start, _dheap_end, _sheap_start, _sheap_end;
 extern void* initiram_handle;
 extern void* initdram_handle;
 
