@@ -697,7 +697,7 @@ free_socket(struct lwip_sock *sock, int is_tcp)
  */
 
 int
-lwip_accept(int s, struct sockaddr *addr, socklen_t *addrlen)
+_lwip_accept(int s, struct sockaddr *addr, socklen_t *addrlen)
 {
   struct lwip_sock *sock, *nsock;
   struct netconn *newconn;
@@ -788,7 +788,7 @@ lwip_accept(int s, struct sockaddr *addr, socklen_t *addrlen)
 }
 
 int
-lwip_bind(int s, const struct sockaddr *name, socklen_t namelen)
+_lwip_bind(int s, const struct sockaddr *name, socklen_t namelen)
 {
   struct lwip_sock *sock;
   ip_addr_t local_addr;
@@ -831,7 +831,7 @@ lwip_bind(int s, const struct sockaddr *name, socklen_t namelen)
 }
 
 int
-lwip_close(int s)
+_lwip_close(int s)
 {
   struct lwip_sock *sock;
   int is_tcp = 0;
@@ -874,7 +874,7 @@ lwip_close(int s)
 }
 
 int
-lwip_connect(int s, const struct sockaddr *name, socklen_t namelen)
+_lwip_connect(int s, const struct sockaddr *name, socklen_t namelen)
 {
   struct lwip_sock *sock;
   err_t err;
@@ -931,7 +931,7 @@ lwip_connect(int s, const struct sockaddr *name, socklen_t namelen)
  * @return 0 on success, non-zero on failure
  */
 int
-lwip_listen(int s, int backlog)
+_lwip_listen(int s, int backlog)
 {
   struct lwip_sock *sock;
   err_t err;
@@ -963,7 +963,7 @@ lwip_listen(int s, int backlog)
 }
 
 int
-lwip_recvfrom(int s, void *mem, size_t len, int flags,
+_lwip_recvfrom(int s, void *mem, size_t len, int flags,
               struct sockaddr *from, socklen_t *fromlen)
 {
   struct lwip_sock *sock;
@@ -1148,19 +1148,19 @@ lwip_recvfrom(int s, void *mem, size_t len, int flags,
 
 
 int
-lwip_read(int s, void *mem, size_t len)
+_lwip_read(int s, void *mem, size_t len)
 {
   return lwip_recvfrom(s, mem, len, 0, NULL, NULL);
 }
 
 int
-lwip_recv(int s, void *mem, size_t len, int flags)
+_lwip_recv(int s, void *mem, size_t len, int flags)
 {
   return lwip_recvfrom(s, mem, len, flags, NULL, NULL);
 }
 
 int
-lwip_send(int s, const void *data, size_t size, int flags)
+_lwip_send(int s, const void *data, size_t size, int flags)
 {
   struct lwip_sock *sock;
   err_t err;
@@ -1197,7 +1197,7 @@ lwip_send(int s, const void *data, size_t size, int flags)
 }
 
 int
-lwip_sendmsg(int s, const struct msghdr *msg, int flags)
+_lwip_sendmsg(int s, const struct msghdr *msg, int flags)
 {
   struct lwip_sock *sock;
   struct netbuf *chain_buf;
@@ -1341,7 +1341,7 @@ lwip_sendmsg(int s, const struct msghdr *msg, int flags)
 }
 
 int
-lwip_sendto(int s, const void *data, size_t size, int flags,
+_lwip_sendto(int s, const void *data, size_t size, int flags,
        const struct sockaddr *to, socklen_t tolen)
 {
   struct lwip_sock *sock;
@@ -1514,7 +1514,7 @@ lwip_socket(int domain, int type, int protocol)
 }
 
 int
-lwip_write(int s, const void *data, size_t size)
+_lwip_write(int s, const void *data, size_t size)
 {
   return lwip_send(s, data, size, 0);
 }
@@ -1616,7 +1616,7 @@ lwip_selscan(int maxfdp1, fd_set *readset_in, fd_set *writeset_in, fd_set *excep
 }
 
 int
-lwip_select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset,
+_lwip_select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset,
             struct timeval *timeout)
 {
   u32_t waitres = 0;
@@ -1939,7 +1939,7 @@ again:
  * Currently, the full connection is closed.
  */
 int
-lwip_shutdown(int s, int how)
+_lwip_shutdown(int s, int how)
 {
 #if ! ESP_LWIP
 
@@ -2022,19 +2022,19 @@ lwip_getaddrname(int s, struct sockaddr *name, socklen_t *namelen, u8_t local)
 }
 
 int
-lwip_getpeername(int s, struct sockaddr *name, socklen_t *namelen)
+_lwip_getpeername(int s, struct sockaddr *name, socklen_t *namelen)
 {
   return lwip_getaddrname(s, name, namelen, 0);
 }
 
 int
-lwip_getsockname(int s, struct sockaddr *name, socklen_t *namelen)
+_lwip_getsockname(int s, struct sockaddr *name, socklen_t *namelen)
 {
   return lwip_getaddrname(s, name, namelen, 1);
 }
 
 int
-lwip_getsockopt(int s, int level, int optname, void *optval, socklen_t *optlen)
+_lwip_getsockopt(int s, int level, int optname, void *optval, socklen_t *optlen)
 {
   u8_t err;
   struct lwip_sock *sock = get_socket(s);
@@ -2479,7 +2479,7 @@ lwip_getsockopt_impl(int s, int level, int optname, void *optval, socklen_t *opt
 }
 
 int
-lwip_setsockopt(int s, int level, int optname, const void *optval, socklen_t optlen)
+_lwip_setsockopt(int s, int level, int optname, const void *optval, socklen_t optlen)
 {
   u8_t err = 0;
   struct lwip_sock *sock = get_socket(s);
@@ -2949,7 +2949,7 @@ lwip_setsockopt_impl(int s, int level, int optname, const void *optval, socklen_
 }
 
 int
-lwip_ioctl(int s, long cmd, void *argp)
+_lwip_ioctl(int s, long cmd, void *argp)
 {
   struct lwip_sock *sock = get_socket(s);
   u8_t val;
@@ -3046,7 +3046,7 @@ lwip_ioctl(int s, long cmd, void *argp)
  * Only the flag O_NONBLOCK is implemented.
  */
 int
-lwip_fcntl(int s, int cmd, int val)
+_lwip_fcntl(int s, int cmd, int val)
 {
   struct lwip_sock *sock = get_socket(s);
   int ret = -1;
@@ -3159,168 +3159,151 @@ static void lwip_socket_drop_registered_memberships(int s)
 #if ESP_THREAD_SAFE
 
 int
-lwip_sendto_r(int s, const void *data, size_t size, int flags,
+lwip_sendto(int s, const void *data, size_t size, int flags,
        const struct sockaddr *to, socklen_t tolen)
 {
   LWIP_API_LOCK();
-  __ret = lwip_sendto(s, data, size, flags, to, tolen);
+  __ret = _lwip_sendto(s, data, size, flags, to, tolen);
   LWIP_API_UNLOCK();
 }
  
 int
-lwip_send_r(int s, const void *data, size_t size, int flags)
+lwip_send(int s, const void *data, size_t size, int flags)
 {
   LWIP_API_LOCK();
-  __ret = lwip_send(s, data, size, flags);
+  __ret = _lwip_send(s, data, size, flags);
   LWIP_API_UNLOCK();
 }
 
 int
-lwip_recvfrom_r(int s, void *mem, size_t len, int flags,
+lwip_recvfrom(int s, void *mem, size_t len, int flags,
               struct sockaddr *from, socklen_t *fromlen)
 {
   LWIP_API_LOCK();
-  __ret = lwip_recvfrom(s, mem, len, flags, from, fromlen);
+  __ret = _lwip_recvfrom(s, mem, len, flags, from, fromlen);
   LWIP_API_UNLOCK();
 }
 
 int
-lwip_recv_r(int s, void *mem, size_t len, int flags)
+lwip_recv(int s, void *mem, size_t len, int flags)
 {
-  return lwip_recvfrom_r(s, mem, len, flags, NULL, NULL);
+  return lwip_recvfrom(s, mem, len, flags, NULL, NULL);
 }
 
 int
-lwip_read_r(int s, void *mem, size_t len)
+lwip_read(int s, void *mem, size_t len)
 {
-  return lwip_recvfrom_r(s, mem, len, 0, NULL, NULL);
+  return lwip_recvfrom(s, mem, len, 0, NULL, NULL);
 }
 
 int
-lwip_sendmsg_r(int s, const struct msghdr *msg, int flags)
+lwip_sendmsg(int s, const struct msghdr *msg, int flags)
 {
   LWIP_API_LOCK();
-  __ret = lwip_sendmsg(s, msg, flags);
+  __ret = _lwip_sendmsg(s, msg, flags);
   LWIP_API_UNLOCK();
 }
 
 int
-lwip_write_r(int s, const void *data, size_t size)
+lwip_write(int s, const void *data, size_t size)
 {
-  return lwip_send_r(s, data, size, 0);
+  return lwip_send(s, data, size, 0);
 }
 
 int
-lwip_writev_r(int s, const struct iovec *iov, int iovcnt)
-{
-  struct msghdr msg;
-
-  msg.msg_name = NULL;
-  msg.msg_namelen = 0;
-  /* Hack: we have to cast via number to cast from 'const' pointer to non-const.
-     Blame the opengroup standard for this inconsistency. */
-  msg.msg_iov = (struct iovec *)(size_t)iov;
-  msg.msg_iovlen = iovcnt;
-  msg.msg_control = NULL;
-  msg.msg_controllen = 0;
-  msg.msg_flags = 0;
-  return lwip_sendmsg_r(s, &msg, 0);
-}
-
-int
-lwip_connect_r(int s, const struct sockaddr *name, socklen_t namelen)
+lwip_connect(int s, const struct sockaddr *name, socklen_t namelen)
 {
   LWIP_API_LOCK();
-  __ret = lwip_connect(s, name, namelen);
+  __ret = _lwip_connect(s, name, namelen);
   LWIP_API_UNLOCK();
 }
 
 int
-lwip_listen_r(int s, int backlog)
+lwip_listen(int s, int backlog)
 {
   LWIP_API_LOCK();
-  __ret = lwip_listen(s, backlog);
+  __ret = _lwip_listen(s, backlog);
   LWIP_API_UNLOCK();
 }
 
 int
-lwip_bind_r(int s, const struct sockaddr *name, socklen_t namelen)
+lwip_bind(int s, const struct sockaddr *name, socklen_t namelen)
 {
   LWIP_API_LOCK();
-  __ret = lwip_bind(s, name, namelen);
+  __ret = _lwip_bind(s, name, namelen);
   LWIP_API_UNLOCK();
 }
  
 int
-lwip_accept_r(int s, struct sockaddr *addr, socklen_t *addrlen)
+lwip_accept(int s, struct sockaddr *addr, socklen_t *addrlen)
 {
   LWIP_API_LOCK();
-  __ret = lwip_accept(s, addr, addrlen);
+  __ret = _lwip_accept(s, addr, addrlen);
   LWIP_API_UNLOCK();
 }
  
 int
-lwip_ioctl_r(int s, long cmd, void *argp)
+lwip_ioctl(int s, long cmd, void *argp)
 {
   LWIP_API_LOCK();
-  __ret = lwip_ioctl(s, cmd, argp);
+  __ret = _lwip_ioctl(s, cmd, argp);
   LWIP_API_UNLOCK();
 }
 
 int
-lwip_fcntl_r(int s, int cmd, int val)
+lwip_fcntl(int s, int cmd, int val)
 {
   LWIP_API_LOCK();
-  __ret = lwip_fcntl(s, cmd, val);
+  __ret = _lwip_fcntl(s, cmd, val);
   LWIP_API_UNLOCK();
 }
 
 int
-lwip_setsockopt_r(int s, int level, int optname, const void *optval, socklen_t optlen)
+lwip_setsockopt(int s, int level, int optname, const void *optval, socklen_t optlen)
 {
   LWIP_API_LOCK();
-  __ret = lwip_setsockopt(s, level, optname, optval, optlen);
+  __ret = _lwip_setsockopt(s, level, optname, optval, optlen);
   LWIP_API_UNLOCK();
 }
  
 int
-lwip_getsockopt_r(int s, int level, int optname, void *optval, socklen_t *optlen)
+lwip_getsockopt(int s, int level, int optname, void *optval, socklen_t *optlen)
 {
   LWIP_API_LOCK();
-  __ret = lwip_getsockopt(s, level, optname, optval, optlen);
+  __ret = _lwip_getsockopt(s, level, optname, optval, optlen);
   LWIP_API_UNLOCK();
 }
 
 int
-lwip_getpeername_r(int s, struct sockaddr *name, socklen_t *namelen)
+lwip_getpeername(int s, struct sockaddr *name, socklen_t *namelen)
 {
   LWIP_API_LOCK();
-  __ret = lwip_getpeername(s, name, namelen);
+  __ret = _lwip_getpeername(s, name, namelen);
   LWIP_API_UNLOCK();
 }
 
 int
-lwip_getsockname_r(int s, struct sockaddr *name, socklen_t *namelen)
+lwip_getsockname(int s, struct sockaddr *name, socklen_t *namelen)
 {
   LWIP_API_LOCK();
-  __ret = lwip_getsockname(s, name, namelen);
+  __ret = _lwip_getsockname(s, name, namelen);
   LWIP_API_UNLOCK();
 }
 
 int
-lwip_close_r(int s)
+lwip_close(int s)
 {
   LWIP_API_LOCK();
   LWIP_SET_CLOSE_FLAG();
-  __ret = lwip_close(s);
+  __ret = _lwip_close(s);
   LWIP_API_UNLOCK();
 }
 
 int
-lwip_shutdown_r(int s, int how)
+lwip_shutdown(int s, int how)
 {
   LWIP_API_LOCK();
-  __ret = lwip_shutdown(s, how);
+  __ret = _lwip_shutdown(s, how);
   LWIP_API_UNLOCK();
 }
 
