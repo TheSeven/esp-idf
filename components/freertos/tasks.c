@@ -4834,7 +4834,6 @@ TickType_t uxReturn;
 	eNotifyValue eOriginalNotifyState;
 	BaseType_t xReturn = pdPASS;
 
-		UNTESTED_FUNCTION();
 		configASSERT( xTaskToNotify );
 
 		pxTCB = ( TCB_t * ) xTaskToNotify;
